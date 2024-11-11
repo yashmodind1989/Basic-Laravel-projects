@@ -42,4 +42,6 @@ deliveryAgent2@yopmail.com
 deliveryAgent2
 
 Role:
+-view Assigned Order
+-change Order Status
 
