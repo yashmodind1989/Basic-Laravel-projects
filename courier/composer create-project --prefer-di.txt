@@ -1,0 +1,3291 @@
+composer create-project --prefer-dist laravel/laravel:^8.0 Courier
+
+------------------------------------------------------------------
+Creating a full customer panel for a courier delivery system with PHP and MySQL can be complex, as it requires a combination of backend, frontend, and database design to handle shipments, parcels, orders, payments, notifications, tracking, history, support, and feedback, along with user profile management. Here’s an overview of how to approach this, with key code examples for each functionality.
+
+1. Database Schema Design
+To start, a MySQL database schema might look like this:
+
+sql
+Copy code
+-- Users Table
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    phone VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Shipments Table
+CREATE TABLE shipments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    tracking_number VARCHAR(100),
+    status ENUM('Pending', 'In Transit', 'Delivered', 'Cancelled'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipment_id INT,
+    description TEXT,
+    payment_status ENUM('Paid', 'Unpaid'),
+    delivery_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+);
+
+-- Payments Table
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    amount DECIMAL(10, 2),
+    payment_method ENUM('Credit Card', 'Paypal', 'Bank Transfer'),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+2. PHP Functionality and Code Examples
+2.1 User Login and Registration
+php
+Copy code
+// registration.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
+    $query = "INSERT INTO users (name, email, password) VALUES ('$name', '$email', '$password')";
+    mysqli_query($conn, $query);
+    echo "User registered successfully!";
+}
+2.2 Creating a Shipment
+php
+Copy code
+// create_shipment.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $tracking_number = uniqid('TRK_');
+    $status = 'Pending';
+    $query = "INSERT INTO shipments (user_id, tracking_number, status) VALUES ($user_id, '$tracking_number', '$status')";
+    mysqli_query($conn, $query);
+    echo "Shipment created with tracking number: $tracking_number";
+}
+2.3 Viewing Shipments
+php
+Copy code
+// view_shipments.php
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM shipments WHERE user_id = $user_id";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Tracking Number: " . $row['tracking_number'];
+    echo "Status: " . $row['status'];
+    echo "<hr>";
+}
+2.4 Order Tracking and History
+php
+Copy code
+// order_history.php
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM orders JOIN shipments ON orders.shipment_id = shipments.id WHERE shipments.user_id = $user_id";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Order ID: " . $row['id'];
+    echo "Tracking Number: " . $row['tracking_number'];
+    echo "Status: " . $row['status'];
+    echo "Payment Status: " . $row['payment_status'];
+    echo "<hr>";
+}
+2.5 Payments and Invoices
+php
+Copy code
+// payment.php
+$order_id = $_POST['order_id'];
+$amount = $_POST['amount'];
+$payment_method = $_POST['payment_method'];
+
+$query = "INSERT INTO payments (order_id, amount, payment_method) VALUES ($order_id, $amount, '$payment_method')";
+mysqli_query($conn, $query);
+echo "Payment successful!";
+2.6 Notifications
+php
+Copy code
+// notifications.php
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM notifications WHERE user_id = $user_id AND is_read = 0";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Notification: " . $row['message'];
+    echo "<hr>";
+    // Mark as read
+    $update_query = "UPDATE notifications SET is_read = 1 WHERE id = " . $row['id'];
+    mysqli_query($conn, $update_query);
+}
+2.7 Support and Feedback
+php
+Copy code
+// feedback.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $feedback = $_POST['feedback'];
+    $query = "INSERT INTO feedback (user_id, feedback) VALUES ($user_id, '$feedback')";
+    mysqli_query($conn, $query);
+    echo "Thank you for your feedback!";
+}
+2.8 Profile Management
+php
+Copy code
+// profile.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $name = $_POST['name'];
+    $phone = $_POST['phone'];
+    $address = $_POST['address'];
+    $query = "UPDATE users SET name='$name', phone='$phone', address='$address' WHERE id=$user_id";
+    mysqli_query($conn, $query);
+    echo "Profile updated!";
+}
+3. Folder Structure
+Here's an organized structure to keep the code clean and manageable:
+
+plaintext
+Copy code
+- index.php           // Home page
+- login.php           // Login functionality
+- register.php        // Registration
+- dashboard.php       // Dashboard page
+- shipments/
+    - create.php      // Create shipment
+    - view.php        // View shipments
+- orders/
+    - track.php       // Track orders
+    - history.php     // Order history
+- payments/
+    - pay.php         // Process payment
+- notifications/
+    - view.php        // View notifications
+- profile/
+    - edit.php        // Edit profile
+- feedback/
+    - submit.php      // Submit feedback
+- assets/             // CSS, JS, images
+- includes/
+    - config.php      // Database connection
+This design provides a foundational system. Each file would ideally include error handling, validation, and further features for security and user experience. Also, consider using modern PHP frameworks like Laravel for additional built-in support with routing, data handling, and secure authentication.
+-------------------------------------------------------------
+1. Database Schema
+Tables
+Users – to store customer information
+Shipments – to handle shipment details
+Parcels – to represent individual parcels
+Orders – for order information
+Payments – to track payments
+Notifications – to notify users
+Feedback – for user feedback and support requests
+Here is a basic schema to start with:
+
+sql
+Copy code
+-- Users Table
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    phone VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Shipments Table
+CREATE TABLE shipments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    tracking_number VARCHAR(100),
+    status ENUM('Pending', 'In Transit', 'Delivered', 'Cancelled'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Parcels Table
+CREATE TABLE parcels (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipment_id INT,
+    weight DECIMAL(5, 2),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    shipment_id INT,
+    description TEXT,
+    payment_status ENUM('Paid', 'Unpaid'),
+    delivery_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (shipment_id) REFERENCES shipments(id)
+);
+
+-- Payments Table
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    amount DECIMAL(10, 2),
+    payment_method ENUM('Credit Card', 'Paypal', 'Bank Transfer'),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Feedback Table
+CREATE TABLE feedback (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+2. PHP Code and Functionality for Each Feature
+2.1 User Registration & Login
+Registration (register.php):
+
+php
+Copy code
+// Register a new user
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
+    
+    $query = "INSERT INTO users (name, email, password) VALUES ('$name', '$email', '$password')";
+    mysqli_query($conn, $query);
+    echo "User registered successfully!";
+}
+Login (login.php):
+
+php
+Copy code
+// User login
+session_start();
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    
+    $result = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
+    $user = mysqli_fetch_assoc($result);
+    
+    if ($user && password_verify($password, $user['password'])) {
+        $_SESSION['user_id'] = $user['id'];
+        header('Location: dashboard.php');
+    } else {
+        echo "Invalid email or password";
+    }
+}
+2.2 Dashboard (dashboard.php)
+Display main dashboard information, including recent shipments, orders, and notifications.
+
+php
+Copy code
+// Display recent shipments, orders, and notifications
+$user_id = $_SESSION['user_id'];
+$shipments = mysqli_query($conn, "SELECT * FROM shipments WHERE user_id = $user_id ORDER BY created_at DESC LIMIT 5");
+$orders = mysqli_query($conn, "SELECT * FROM orders JOIN shipments ON orders.shipment_id = shipments.id WHERE shipments.user_id = $user_id ORDER BY orders.created_at DESC LIMIT 5");
+$notifications = mysqli_query($conn, "SELECT * FROM notifications WHERE user_id = $user_id AND is_read = 0 LIMIT 5");
+2.3 Add Parcel (add_parcel.php)
+php
+Copy code
+// Add a parcel to an existing shipment
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $shipment_id = $_POST['shipment_id'];
+    $weight = $_POST['weight'];
+    $description = $_POST['description'];
+    
+    $query = "INSERT INTO parcels (shipment_id, weight, description) VALUES ($shipment_id, $weight, '$description')";
+    mysqli_query($conn, $query);
+    echo "Parcel added successfully!";
+}
+2.4 Track Parcel (track_parcel.php)
+php
+Copy code
+// Track a parcel by its shipment tracking number
+$tracking_number = $_POST['tracking_number'];
+$query = "SELECT * FROM shipments WHERE tracking_number = '$tracking_number'";
+$result = mysqli_query($conn, $query);
+$shipment = mysqli_fetch_assoc($result);
+
+if ($shipment) {
+    echo "Status: " . $shipment['status'];
+} else {
+    echo "Shipment not found";
+}
+2.5 Place Order (place_order.php)
+php
+Copy code
+// Place an order for a shipment
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $shipment_id = $_POST['shipment_id'];
+    $description = $_POST['description'];
+    
+    $query = "INSERT INTO orders (shipment_id, description, payment_status) VALUES ($shipment_id, '$description', 'Unpaid')";
+    mysqli_query($conn, $query);
+    echo "Order placed successfully!";
+}
+2.6 Make Payment (payment.php)
+php
+Copy code
+// Process payment for an order
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $order_id = $_POST['order_id'];
+    $amount = $_POST['amount'];
+    $payment_method = $_POST['payment_method'];
+    
+    $query = "INSERT INTO payments (order_id, amount, payment_method) VALUES ($order_id, $amount, '$payment_method')";
+    mysqli_query($conn, $query);
+    echo "Payment successful!";
+}
+2.7 Notifications (notifications.php)
+php
+Copy code
+// Retrieve and mark notifications as read
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM notifications WHERE user_id = $user_id AND is_read = 0";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Notification: " . $row['message'];
+    // Mark notification as read
+    $update_query = "UPDATE notifications SET is_read = 1 WHERE id = " . $row['id'];
+    mysqli_query($conn, $update_query);
+}
+2.8 Feedback (feedback.php)
+php
+Copy code
+// Submit feedback
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $message = $_POST['message'];
+    
+    $query = "INSERT INTO feedback (user_id, message) VALUES ($user_id, '$message')";
+    mysqli_query($conn, $query);
+    echo "Feedback submitted successfully!";
+}
+2.9 Order History (order_history.php)
+php
+Copy code
+// Display user order history
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM orders JOIN shipments ON orders.shipment_id = shipments.id WHERE shipments.user_id = $user_id";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Order ID: " . $row['id'];
+    echo "Status: " . $row['status'];
+    echo "<br>";
+}
+3. Folder Structure
+Organize files as follows for maintainability:
+
+plaintext
+Copy code
+- index.php                // Landing page
+- auth/
+  - login.php              // User login
+  - register.php           // User registration
+- dashboard.php            // Main customer dashboard
+- parcels/
+  - add_parcel.php         // Add parcel
+  - track_parcel.php       // Track parcel
+- orders/
+  - place_order.php        // Place order
+  - order_history.php      // Order history
+- payments/
+  - payment.php            // Process payments
+- notifications/
+  - notifications.php      // View notifications
+- feedback/
+  - feedback.php           // Submit feedback
+- includes/
+  - config.php             // Database connection
+  - header.php             // Header and navigation
+  - footer.php             // Footer
+This provides a foundational system in PHP and MySQL with sample code for each feature. Adjustments for security, validations, and user experience should be added to ensure robustness and reliability in production environments.
+
+
+---------------------------------------------
+1. Database Structure
+Define the database schema to store users, parcels, orders, payments, and notifications.
+
+Database Tables
+sql
+Copy code
+-- Users Table
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Parcels Table
+CREATE TABLE parcels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    description TEXT,
+    weight DECIMAL(5, 2),
+    pickup_address TEXT,
+    delivery_address TEXT,
+    status ENUM('Pending', 'In Transit', 'Delivered', 'Cancelled') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parcel_id INT NOT NULL,
+    shipment_date DATE,
+    delivery_date DATE,
+    payment_status ENUM('Paid', 'Unpaid') DEFAULT 'Unpaid',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parcel_id) REFERENCES parcels(id)
+);
+
+-- Payments Table
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    amount DECIMAL(10, 2),
+    payment_method ENUM('Credit Card', 'PayPal', 'Bank Transfer'),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Feedback Table
+CREATE TABLE feedback (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+2. Dashboard Structure
+Set up folders and files to organize code:
+
+plaintext
+Copy code
+- dashboard.php             // Main dashboard file
+- parcels/
+    - add.php               // Add a new parcel
+    - track.php             // Track parcel
+- orders/
+    - create.php            // Place an order
+    - track.php             // Track order
+    - history.php           // Order history
+- payments/
+    - process.php           // Payment processing
+    - view.php              // View payments
+- notifications/
+    - list.php              // List all notifications
+- profile/
+    - view.php              // View user profile
+    - edit.php              // Edit profile information
+- feedback/
+    - submit.php            // Submit feedback
+- assets/                   // CSS, JS, Images
+- includes/
+    - config.php            // Database connection
+    - auth.php              // Authentication functions
+3. Core Functionalities with Code Examples
+3.1 User Registration and Login
+php
+Copy code
+// register.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
+    $query = "INSERT INTO users (name, email, password) VALUES ('$name', '$email', '$password')";
+    mysqli_query($conn, $query);
+    echo "User registered successfully!";
+}
+
+// login.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    $query = "SELECT * FROM users WHERE email = '$email'";
+    $result = mysqli_query($conn, $query);
+    if ($user = mysqli_fetch_assoc($result)) {
+        if (password_verify($password, $user['password'])) {
+            $_SESSION['user_id'] = $user['id'];
+            header('Location: dashboard.php');
+        }
+    }
+}
+3.2 Add Parcel
+php
+Copy code
+// add_parcel.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $description = $_POST['description'];
+    $weight = $_POST['weight'];
+    $pickup_address = $_POST['pickup_address'];
+    $delivery_address = $_POST['delivery_address'];
+    
+    $query = "INSERT INTO parcels (user_id, description, weight, pickup_address, delivery_address)
+              VALUES ($user_id, '$description', $weight, '$pickup_address', '$delivery_address')";
+    mysqli_query($conn, $query);
+    echo "Parcel added successfully!";
+}
+3.3 Track Parcel
+php
+Copy code
+// track_parcel.php
+$tracking_number = $_GET['tracking_number'];
+$query = "SELECT * FROM parcels WHERE tracking_number = '$tracking_number' AND user_id = " . $_SESSION['user_id'];
+$result = mysqli_query($conn, $query);
+if ($parcel = mysqli_fetch_assoc($result)) {
+    echo "Status: " . $parcel['status'];
+} else {
+    echo "Parcel not found!";
+}
+3.4 Place Order
+php
+Copy code
+// create_order.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $parcel_id = $_POST['parcel_id'];
+    $shipment_date = $_POST['shipment_date'];
+    $query = "INSERT INTO orders (parcel_id, shipment_date, payment_status) VALUES ($parcel_id, '$shipment_date', 'Unpaid')";
+    mysqli_query($conn, $query);
+    echo "Order placed successfully!";
+}
+3.5 Make Payment
+php
+Copy code
+// process_payment.php
+$order_id = $_POST['order_id'];
+$amount = $_POST['amount'];
+$payment_method = $_POST['payment_method'];
+$query = "INSERT INTO payments (order_id, amount, payment_method) VALUES ($order_id, $amount, '$payment_method')";
+mysqli_query($conn, $query);
+echo "Payment successful!";
+3.6 View Notifications
+php
+Copy code
+// list_notifications.php
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM notifications WHERE user_id = $user_id AND is_read = 0";
+$result = mysqli_query($conn, $query);
+while ($notification = mysqli_fetch_assoc($result)) {
+    echo "Notification: " . $notification['message'] . "<br>";
+    // Mark as read
+    $update_query = "UPDATE notifications SET is_read = 1 WHERE id = " . $notification['id'];
+    mysqli_query($conn, $update_query);
+}
+3.7 Submit Feedback
+php
+Copy code
+// submit_feedback.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $message = $_POST['message'];
+    $query = "INSERT INTO feedback (user_id, message) VALUES ($user_id, '$message')";
+    mysqli_query($conn, $query);
+    echo "Thank you for your feedback!";
+}
+3.8 Order History
+php
+Copy code
+// order_history.php
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM orders JOIN parcels ON orders.parcel_id = parcels.id WHERE parcels.user_id = $user_id";
+$result = mysqli_query($conn, $query);
+while ($order = mysqli_fetch_assoc($result)) {
+    echo "Order ID: " . $order['id'] . " - Status: " . $order['status'] . "<br>";
+}
+4. Enhancing the Dashboard
+For production-ready deployment, add features like:
+
+Input validation for all forms.
+Error handling with user-friendly messages.
+Responsive UI using HTML/CSS and possibly JavaScript frameworks.
+Session management for secure authentication.
+Implementing this project provides a comprehensive example of PHP and MySQL working together in a web-based courier service system, enabling users to track, manage, and receive notifications about their parcels and orders.
+
+
+1. Database Schema Design
+Let's start with a basic schema, defining tables for users, parcels, orders, shipments, payments, notifications, feedback, and history.
+
+sql
+Copy code
+-- Agents Table
+CREATE TABLE agents (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Parcels Table
+CREATE TABLE parcels (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    agent_id INT,
+    tracking_number VARCHAR(100) UNIQUE,
+    status ENUM('Pending', 'Picked Up', 'In Transit', 'Delivered', 'Cancelled'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    parcel_id INT,
+    description TEXT,
+    payment_status ENUM('Paid', 'Unpaid'),
+    delivery_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parcel_id) REFERENCES parcels(id)
+);
+
+-- Payments Table
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    amount DECIMAL(10, 2),
+    payment_method ENUM('Credit Card', 'Paypal', 'Cash on Delivery'),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    agent_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- Feedback Table
+CREATE TABLE feedback (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    agent_id INT,
+    feedback TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+2. PHP Functionality and Code Examples
+2.1 Agent Login and Registration
+php
+Copy code
+// agent_register.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
+    $query = "INSERT INTO agents (name, email, password) VALUES ('$name', '$email', '$password')";
+    mysqli_query($conn, $query);
+    echo "Agent registered successfully!";
+}
+2.2 Adding a Parcel
+php
+Copy code
+// add_parcel.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $agent_id = $_SESSION['agent_id'];
+    $tracking_number = uniqid('PRCL_');
+    $status = 'Pending';
+    $query = "INSERT INTO parcels (agent_id, tracking_number, status) VALUES ($agent_id, '$tracking_number', '$status')";
+    mysqli_query($conn, $query);
+    echo "Parcel added with tracking number: $tracking_number";
+}
+2.3 Tracking a Parcel
+php
+Copy code
+// track_parcel.php
+$tracking_number = $_GET['tracking_number'];
+$query = "SELECT * FROM parcels WHERE tracking_number = '$tracking_number'";
+$result = mysqli_query($conn, $query);
+
+if ($row = mysqli_fetch_assoc($result)) {
+    echo "Tracking Number: " . $row['tracking_number'];
+    echo "Status: " . $row['status'];
+} else {
+    echo "Parcel not found!";
+}
+2.4 Placing an Order
+php
+Copy code
+// place_order.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $parcel_id = $_POST['parcel_id'];
+    $description = $_POST['description'];
+    $payment_status = 'Unpaid';
+    $query = "INSERT INTO orders (parcel_id, description, payment_status) VALUES ($parcel_id, '$description', '$payment_status')";
+    mysqli_query($conn, $query);
+    echo "Order placed successfully!";
+}
+2.5 Making a Shipment
+php
+Copy code
+// make_shipment.php
+$parcel_id = $_POST['parcel_id'];
+$status = 'In Transit';
+
+$query = "UPDATE parcels SET status = '$status' WHERE id = $parcel_id";
+mysqli_query($conn, $query);
+echo "Shipment status updated to In Transit!";
+2.6 Order Payment Processing
+php
+Copy code
+// payment.php
+$order_id = $_POST['order_id'];
+$amount = $_POST['amount'];
+$payment_method = $_POST['payment_method'];
+
+$query = "INSERT INTO payments (order_id, amount, payment_method) VALUES ($order_id, $amount, '$payment_method')";
+mysqli_query($conn, $query);
+
+$query = "UPDATE orders SET payment_status = 'Paid' WHERE id = $order_id";
+mysqli_query($conn, $query);
+
+echo "Payment completed successfully!";
+2.7 Notifications
+php
+Copy code
+// notifications.php
+$agent_id = $_SESSION['agent_id'];
+$query = "SELECT * FROM notifications WHERE agent_id = $agent_id AND is_read = 0";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Notification: " . $row['message'];
+    echo "<hr>";
+    // Mark as read
+    $update_query = "UPDATE notifications SET is_read = 1 WHERE id = " . $row['id'];
+    mysqli_query($conn, $update_query);
+}
+2.8 Support and Feedback
+php
+Copy code
+// feedback.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $agent_id = $_SESSION['agent_id'];
+    $feedback = $_POST['feedback'];
+    $query = "INSERT INTO feedback (agent_id, feedback) VALUES ($agent_id, '$feedback')";
+    mysqli_query($conn, $query);
+    echo "Feedback submitted successfully!";
+}
+2.9 Order and Shipment History
+php
+Copy code
+// order_history.php
+$agent_id = $_SESSION['agent_id'];
+$query = "SELECT parcels.tracking_number, orders.description, orders.payment_status FROM parcels
+          JOIN orders ON parcels.id = orders.parcel_id
+          WHERE parcels.agent_id = $agent_id";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Tracking Number: " . $row['tracking_number'];
+    echo "Description: " . $row['description'];
+    echo "Payment Status: " . $row['payment_status'];
+    echo "<hr>";
+}
+3. Folder Structure
+To organize the files for easy maintenance and scalability:
+
+plaintext
+Copy code
+- index.php           // Home page
+- login.php           // Login functionality
+- register.php        // Registration
+- dashboard.php       // Agent Dashboard
+- parcels/
+    - add.php         // Add Parcel
+    - track.php       // Track Parcel
+- orders/
+    - place.php       // Place Order
+    - history.php     // View Order History
+- shipments/
+    - make.php        // Make Shipment
+- payments/
+    - process.php     // Process Payment
+- notifications/
+    - view.php        // View Notifications
+- feedback/
+    - submit.php      // Submit Feedback
+- assets/             // CSS, JS, images
+- includes/
+    - config.php      // Database connection
+----------------------------
+1. Database Schema
+Define the database schema to store data for parcels, orders, payments, shipments, notifications, and feedback.
+
+sql
+Copy code
+-- Delivery Agents Table
+CREATE TABLE agents (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Parcels Table
+CREATE TABLE parcels (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    agent_id INT,
+    description TEXT,
+    status ENUM('Pending', 'Picked Up', 'In Transit', 'Delivered', 'Cancelled'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    parcel_id INT,
+    order_status ENUM('Processing', 'Shipped', 'Delivered'),
+    delivery_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parcel_id) REFERENCES parcels(id)
+);
+
+-- Shipments Table
+CREATE TABLE shipments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    agent_id INT,
+    parcel_id INT,
+    tracking_number VARCHAR(100),
+    status ENUM('Initiated', 'In Transit', 'Delivered', 'Cancelled'),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(id),
+    FOREIGN KEY (parcel_id) REFERENCES parcels(id)
+);
+
+-- Payments Table
+CREATE TABLE payments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    amount DECIMAL(10, 2),
+    payment_method ENUM('Credit Card', 'Paypal', 'Bank Transfer'),
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    agent_id INT,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+2. Functionalities and PHP Code Examples
+2.1 Agent Login and Registration
+php
+Copy code
+// agent_register.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
+    $query = "INSERT INTO agents (name, email, password) VALUES ('$name', '$email', '$password')";
+    mysqli_query($conn, $query);
+    echo "Agent registered successfully!";
+}
+2.2 Adding a Parcel
+php
+Copy code
+// add_parcel.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $agent_id = $_SESSION['agent_id'];
+    $description = $_POST['description'];
+    $status = 'Pending';
+    $query = "INSERT INTO parcels (agent_id, description, status) VALUES ($agent_id, '$description', '$status')";
+    mysqli_query($conn, $query);
+    echo "Parcel added successfully!";
+}
+2.3 Tracking a Parcel
+php
+Copy code
+// track_parcel.php
+$parcel_id = $_GET['parcel_id'];
+$query = "SELECT * FROM parcels WHERE id = $parcel_id AND agent_id = ".$_SESSION['agent_id'];
+$result = mysqli_query($conn, $query);
+
+if ($row = mysqli_fetch_assoc($result)) {
+    echo "Parcel Status: " . $row['status'];
+} else {
+    echo "Parcel not found.";
+}
+2.4 Placing an Order
+php
+Copy code
+// place_order.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $parcel_id = $_POST['parcel_id'];
+    $delivery_date = $_POST['delivery_date'];
+    $query = "INSERT INTO orders (parcel_id, order_status, delivery_date) VALUES ($parcel_id, 'Processing', '$delivery_date')";
+    mysqli_query($conn, $query);
+    echo "Order placed successfully!";
+}
+2.5 Making a Shipment
+php
+Copy code
+// create_shipment.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $agent_id = $_SESSION['agent_id'];
+    $parcel_id = $_POST['parcel_id'];
+    $tracking_number = uniqid('TRK_');
+    $query = "INSERT INTO shipments (agent_id, parcel_id, tracking_number, status) VALUES ($agent_id, $parcel_id, '$tracking_number', 'Initiated')";
+    mysqli_query($conn, $query);
+    echo "Shipment created with tracking number: $tracking_number";
+}
+2.6 Tracking an Order
+php
+Copy code
+// track_order.php
+$order_id = $_GET['order_id'];
+$query = "SELECT * FROM orders WHERE id = $order_id";
+$result = mysqli_query($conn, $query);
+
+if ($row = mysqli_fetch_assoc($result)) {
+    echo "Order Status: " . $row['order_status'];
+} else {
+    echo "Order not found.";
+}
+2.7 Managing Payments
+php
+Copy code
+// process_payment.php
+$order_id = $_POST['order_id'];
+$amount = $_POST['amount'];
+$payment_method = $_POST['payment_method'];
+
+$query = "INSERT INTO payments (order_id, amount, payment_method) VALUES ($order_id, $amount, '$payment_method')";
+mysqli_query($conn, $query);
+echo "Payment processed successfully!";
+2.8 Notifications
+php
+Copy code
+// notifications.php
+$agent_id = $_SESSION['agent_id'];
+$query = "SELECT * FROM notifications WHERE agent_id = $agent_id AND is_read = 0";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Notification: " . $row['message'];
+    echo "<hr>";
+    // Mark as read
+    $update_query = "UPDATE notifications SET is_read = 1 WHERE id = " . $row['id'];
+    mysqli_query($conn, $update_query);
+}
+2.9 Support and Feedback
+php
+Copy code
+// support_feedback.php
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $agent_id = $_SESSION['agent_id'];
+    $feedback = $_POST['feedback'];
+    $query = "INSERT INTO feedback (agent_id, feedback) VALUES ($agent_id, '$feedback')";
+    mysqli_query($conn, $query);
+    echo "Feedback submitted!";
+}
+2.10 Order and Parcel History
+php
+Copy code
+// history.php
+$agent_id = $_SESSION['agent_id'];
+$query = "SELECT * FROM parcels WHERE agent_id = $agent_id";
+$result = mysqli_query($conn, $query);
+
+while ($row = mysqli_fetch_assoc($result)) {
+    echo "Parcel Description: " . $row['description'];
+    echo "Status: " . $row['status'];
+    echo "<hr>";
+}
+3. Folder Structure
+A structured folder organization helps manage the code efficiently:
+
+plaintext
+Copy code
+- index.php              // Agent login page
+- dashboard.php          // Dashboard landing page
+- parcels/
+    - add.php            // Add parcel
+    - track.php          // Track parcel
+- orders/
+    - place.php          // Place order
+    - track.php          // Track order
+    - history.php        // Order history
+- shipments/
+    - create.php         // Create shipment
+- payments/
+    - process.php        // Process payment
+- notifications/
+    - view.php           // View notifications
+- support/
+    - feedback.php       // Submit feedback
+- assets/                // CSS, JS, images
+- includes/
+    - config.php         // Database connection
+------------------------------------------------
+
+Application Structure
+Models:
+User (extended for Admin, Customer, and Agent roles)
+Order, Parcel, Shipment, Branch, Staff, Payment
+Controllers:
+DashboardController for common dashboard functionality.
+OrderController, ParcelController, ShipmentController for order management.
+BranchController, StaffController for Admin management.
+Middleware:
+To manage access control between the different roles.
+Step 1: Models
+php
+Copy code
+// User.php (with roles: Admin, Customer, Agent)
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable {
+    use HasRoles;
+
+    protected $fillable = ['name', 'email', 'password', 'role'];
+    
+    public function orders() {
+        return $this->hasMany(Order::class);
+    }
+
+    public function parcels() {
+        return $this->hasMany(Parcel::class);
+    }
+}
+
+// Order.php
+class Order extends Model {
+    protected $fillable = ['customer_id', 'status', 'tracking_number', 'shipment_id'];
+
+    public function customer() {
+        return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function shipment() {
+        return $this->belongsTo(Shipment::class);
+    }
+}
+
+// Branch.php
+class Branch extends Model {
+    protected $fillable = ['name', 'location'];
+
+    public function staff() {
+        return $this->hasMany(Staff::class);
+    }
+}
+
+// Staff.php
+class Staff extends Model {
+    protected $fillable = ['user_id', 'branch_id', 'role'];
+
+    public function branch() {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function user() {
+        return $this->belongsTo(User::class);
+    }
+}
+Step 2: Controllers
+DashboardController
+This controller will manage separate dashboards for Admin, Customer, and Agent.
+
+php
+Copy code
+class DashboardController extends Controller {
+    public function index() {
+        if (auth()->user()->hasRole('admin')) {
+            return view('dashboard.admin');
+        } elseif (auth()->user()->hasRole('customer')) {
+            return view('dashboard.customer');
+        } elseif (auth()->user()->hasRole('agent')) {
+            return view('dashboard.agent');
+        }
+    }
+}
+OrderController
+Handle customer orders, agent shipments, and admin order management.
+
+php
+Copy code
+class OrderController extends Controller {
+    public function create(Request $request) {
+        $validated = $request->validate([
+            'customer_id' => 'required|exists:users,id',
+            'status' => 'required|string',
+        ]);
+
+        $order = Order::create($validated);
+        return response()->json($order);
+    }
+
+    public function updateStatus(Request $request, Order $order) {
+        $this->authorize('update', $order);
+        $order->update(['status' => $request->status]);
+        return response()->json($order);
+    }
+}
+BranchController
+Admin can add branches and manage staff within them.
+
+php
+Copy code
+class BranchController extends Controller {
+    public function create(Request $request) {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'required|string',
+        ]);
+
+        $branch = Branch::create($validated);
+        return response()->json($branch);
+    }
+
+    public function addStaff(Request $request, Branch $branch) {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role' => 'required|string',
+        ]);
+
+        $staff = $branch->staff()->create($validated);
+        return response()->json($staff);
+    }
+}
+Step 3: Views
+admin.blade.php (Admin Dashboard)
+html
+Copy code
+@extends('layouts.app')
+@section('content')
+<h1>Admin Dashboard</h1>
+<ul>
+    <li><a href="{{ route('branches.index') }}">Manage Branches</a></li>
+    <li><a href="{{ route('staff.index') }}">Manage Staff</a></li>
+    <li><a href="{{ route('orders.index') }}">Manage Orders</a></li>
+</ul>
+@endsection
+customer.blade.php (Customer Dashboard)
+html
+Copy code
+@extends('layouts.app')
+@section('content')
+<h1>Customer Dashboard</h1>
+<ul>
+    <li><a href="{{ route('orders.create') }}">Place Order</a></li>
+    <li><a href="{{ route('orders.index') }}">My Orders</a></li>
+    <li><a href="{{ route('support') }}">Support & Feedback</a></li>
+</ul>
+@endsection
+agent.blade.php (Agent Dashboard)
+html
+Copy code
+@extends('layouts.app')
+@section('content')
+<h1>Delivery Agent Dashboard</h1>
+<ul>
+    <li><a href="{{ route('parcels.index') }}">View Assigned Parcels</a></li>
+    <li><a href="{{ route('tracking') }}">Track Orders</a></li>
+</ul>
+@endsection
+Step 4: Routes
+Define routes for the dashboards and controller actions.
+
+php
+Copy code
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\BranchController;
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // Order routes
+    Route::resource('orders', OrderController::class);
+
+    // Branch routes (Admin only)
+    Route::middleware('role:admin')->group(function () {
+        Route::resource('branches', BranchController::class);
+    });
+});
+Step 5: Middleware for Role-Based Access
+Use middleware to restrict access to specific roles.
+
+php
+Copy code
+// In App\Http\Middleware\RoleMiddleware.php
+
+public function handle($request, Closure $next, ...$roles) {
+    if (!auth()->user()->hasAnyRole($roles)) {
+        abort(403);
+    }
+    return $next($request);
+}
+
+// Register in Kernel.php
+protected $routeMiddleware = [
+    'role' => \App\Http\Middleware\RoleMiddleware::class,
+];
+Step 6: Notifications (for Real-Time Updates)
+Use Laravel Notifications to notify customers about order status changes or delivery updates.
+
+php
+Copy code
+class OrderStatusChanged extends Notification {
+    public function via($notifiable) {
+        return ['database'];
+    }
+
+    public function toArray($notifiable) {
+        return [
+            'message' => 'Your order status has been updated.',
+        ];
+    }
+}
+This structure provides a foundational setup for building a complete logistics dashboard system, managing roles, branches, orders, staff, and order tracking.
+
+----------------------------------------
+Project Structure
+We'll define a structure that includes models, controllers, and migrations for key entities: Customer, Admin, DeliveryAgent, Order, Branch, Notification, etc.
+
+plaintext
+Copy code
+app
+├── Http
+│   ├── Controllers
+│   │   ├── AdminController.php
+│   │   ├── CustomerController.php
+│   │   ├── DeliveryAgentController.php
+│   │   ├── NotificationController.php
+│   │   ├── OrderController.php
+│   │   └── BranchController.php
+├── Models
+│   ├── Admin.php
+│   ├── Customer.php
+│   ├── DeliveryAgent.php
+│   ├── Order.php
+│   ├── Branch.php
+│   └── Notification.php
+database
+└── migrations
+    ├── 2024_01_01_000000_create_users_table.php
+    ├── 2024_01_01_000001_create_orders_table.php
+    ├── 2024_01_01_000002_create_notifications_table.php
+    ├── 2024_01_01_000003_create_branches_table.php
+    ├── 2024_01_01_000004_create_staff_table.php
+Step 1: Create Models and Migrations
+Customer Model and Migration:
+
+php
+Copy code
+php artisan make:model Customer -m
+In the migration file for customers:
+
+php
+Copy code
+Schema::create('customers', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->string('phone');
+    $table->timestamps();
+});
+Order Model and Migration:
+
+php
+Copy code
+php artisan make:model Order -m
+In the migration file for orders:
+
+php
+Copy code
+Schema::create('orders', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('customer_id')->constrained('customers');
+    $table->foreignId('branch_id')->constrained('branches');
+    $table->enum('status', ['pending', 'in_progress', 'completed']);
+    $table->decimal('amount', 8, 2);
+    $table->timestamps();
+});
+Branch Model and Migration:
+
+php
+Copy code
+php artisan make:model Branch -m
+In the migration file for branches:
+
+php
+Copy code
+Schema::create('branches', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('location');
+    $table->timestamps();
+});
+Step 2: Define Relationships in Models
+In Customer.php:
+
+php
+Copy code
+public function orders()
+{
+    return $this->hasMany(Order::class);
+}
+In Order.php:
+
+php
+Copy code
+public function customer()
+{
+    return $this->belongsTo(Customer::class);
+}
+
+public function branch()
+{
+    return $this->belongsTo(Branch::class);
+}
+In Branch.php:
+
+php
+Copy code
+public function orders()
+{
+    return $this->hasMany(Order::class);
+}
+Step 3: Create Controllers
+Customer Dashboard Example (CustomerController):
+
+php
+Copy code
+php artisan make:controller CustomerController
+In CustomerController.php:
+
+php
+Copy code
+class CustomerController extends Controller
+{
+    public function dashboard()
+    {
+        $customer = auth()->user();
+        $orders = $customer->orders;
+
+        return view('customer.dashboard', compact('orders', 'customer'));
+    }
+
+    public function trackOrder($orderId)
+    {
+        $order = Order::find($orderId);
+        if ($order->customer_id != auth()->id()) {
+            abort(403);
+        }
+        return view('customer.track', compact('order'));
+    }
+}
+Admin Dashboard Example (AdminController):
+
+php
+Copy code
+php artisan make:controller AdminController
+In AdminController.php:
+
+php
+Copy code
+class AdminController extends Controller
+{
+    public function dashboard()
+    {
+        $orders = Order::all();
+        $branches = Branch::all();
+        $deliveryAgents = DeliveryAgent::all();
+
+        return view('admin.dashboard', compact('orders', 'branches', 'deliveryAgents'));
+    }
+
+    public function manageBranch(Request $request)
+    {
+        $branch = new Branch();
+        $branch->name = $request->name;
+        $branch->location = $request->location;
+        $branch->save();
+
+        return redirect()->back()->with('success', 'Branch added successfully');
+    }
+}
+Delivery Agent Dashboard Example (DeliveryAgentController):
+
+php
+Copy code
+php artisan make:controller DeliveryAgentController
+In DeliveryAgentController.php:
+
+php
+Copy code
+class DeliveryAgentController extends Controller
+{
+    public function dashboard()
+    {
+        $agent = auth()->user();
+        $assignedOrders = $agent->orders()->where('status', 'in_progress')->get();
+
+        return view('delivery.dashboard', compact('assignedOrders', 'agent'));
+    }
+
+    public function updateStatus(Request $request, $orderId)
+    {
+        $order = Order::find($orderId);
+        $order->status = $request->status;
+        $order->save();
+
+        return redirect()->back()->with('success', 'Order status updated');
+    }
+}
+Step 4: Define Routes in web.php
+php
+Copy code
+Route::middleware('auth')->group(function () {
+    Route::prefix('customer')->name('customer.')->group(function () {
+        Route::get('/dashboard', [CustomerController::class, 'dashboard'])->name('dashboard');
+        Route::get('/track-order/{id}', [CustomerController::class, 'trackOrder'])->name('trackOrder');
+    });
+
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+        Route::post('/manage-branch', [AdminController::class, 'manageBranch'])->name('manageBranch');
+    });
+
+    Route::prefix('agent')->name('agent.')->group(function () {
+        Route::get('/dashboard', [DeliveryAgentController::class, 'dashboard'])->name('dashboard');
+        Route::post('/update-status/{id}', [DeliveryAgentController::class, 'updateStatus'])->name('updateStatus');
+    });
+});
+Step 5: Create Views
+Create views for each dashboard in resources/views folders like customer/dashboard.blade.php, admin/dashboard.blade.php, and delivery/dashboard.blade.php.
+
+In customer/dashboard.blade.php:
+
+html
+Copy code
+<h2>Welcome, {{ $customer->name }}</h2>
+@foreach($orders as $order)
+    <p>Order #{{ $order->id }} - {{ $order->status }} - {{ $order->amount }}</p>
+@endforeach
+----------------------------------
+Creating a fully functional customer dashboard in Laravel that encompasses all the functionalities you've listed can be quite a comprehensive task. Below, I’ll guide you through the process step-by-step, outlining the major components required for each functionality. We'll focus on building a basic structure without using any external packages or Jetstream, making it accessible even for someone with limited IT background.
+
+Step 1: Set Up Your Laravel Project
+Install Laravel: First, make sure you have Composer installed, then run:
+
+bash
+Copy code
+composer create-project --prefer-dist laravel/laravel customer-dashboard
+Set Up Your Environment: Navigate to your project directory and set up your .env file:
+
+bash
+Copy code
+cd customer-dashboard
+cp .env.example .env
+php artisan key:generate
+Configure Database: Open your .env file and set the database connection:
+
+plaintext
+Copy code
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+Run Migrations: Make sure you have the default migrations and run:
+
+bash
+Copy code
+php artisan migrate
+Step 2: Create Models and Migrations
+You will need several models and corresponding migrations. Here’s an example of the necessary models:
+
+Order:
+
+bash
+Copy code
+php artisan make:model Order -m
+Parcel:
+
+bash
+Copy code
+php artisan make:model Parcel -m
+Shipment:
+
+bash
+Copy code
+php artisan make:model Shipment -m
+Notification:
+
+bash
+Copy code
+php artisan make:model Notification -m
+Payment:
+
+bash
+Copy code
+php artisan make:model Payment -m
+Branch:
+
+bash
+Copy code
+php artisan make:model Branch -m
+Staff:
+
+bash
+Copy code
+php artisan make:model Staff -m
+Step 3: Define Database Schema
+In the migrations created in database/migrations, define the structure of each table. Here’s an example for each model:
+
+Orders Migration
+php
+Copy code
+Schema::create('orders', function (Blueprint $table) {
+    $table->id();
+    $table->string('customer_name');
+    $table->string('status');
+    $table->timestamps();
+});
+Parcels Migration
+php
+Copy code
+Schema::create('parcels', function (Blueprint $table) {
+    $table->id();
+    $table->string('tracking_number');
+    $table->string('status');
+    $table->timestamps();
+});
+Shipments Migration
+php
+Copy code
+Schema::create('shipments', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('order_id')->constrained()->onDelete('cascade');
+    $table->string('shipping_method');
+    $table->timestamps();
+});
+Notifications Migration
+php
+Copy code
+Schema::create('notifications', function (Blueprint $table) {
+    $table->id();
+    $table->string('message');
+    $table->boolean('is_read')->default(false);
+    $table->timestamps();
+});
+Payments Migration
+php
+Copy code
+Schema::create('payments', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('order_id')->constrained()->onDelete('cascade');
+    $table->decimal('amount', 8, 2);
+    $table->string('status');
+    $table->timestamps();
+});
+Branches Migration
+php
+Copy code
+Schema::create('branches', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('location');
+    $table->timestamps();
+});
+Staff Migration
+php
+Copy code
+Schema::create('staff', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->foreignId('branch_id')->constrained()->onDelete('cascade');
+    $table->timestamps();
+});
+Run the migrations after defining all:
+
+bash
+Copy code
+php artisan migrate
+Step 4: Create Controllers
+For each functionality, create a controller. Here’s how to create a controller for managing orders:
+
+bash
+Copy code
+php artisan make:controller OrderController
+Step 5: Define Routes
+In your routes/web.php file, define routes for the functionalities. For example:
+
+php
+Copy code
+Route::resource('orders', OrderController::class);
+Route::resource('parcels', ParcelController::class);
+Route::resource('shipments', ShipmentController::class);
+Route::resource('notifications', NotificationController::class);
+Route::resource('payments', PaymentController::class);
+Route::resource('branches', BranchController::class);
+Route::resource('staff', StaffController::class);
+Step 6: Implement Controller Methods
+In each controller, implement methods for CRUD operations. Here’s an example for the OrderController:
+
+php
+Copy code
+public function index()
+{
+    $orders = Order::all();
+    return view('orders.index', compact('orders'));
+}
+
+public function create()
+{
+    return view('orders.create');
+}
+
+public function store(Request $request)
+{
+    $order = Order::create($request->all());
+    return redirect()->route('orders.index');
+}
+
+public function show(Order $order)
+{
+    return view('orders.show', compact('order'));
+}
+
+public function edit(Order $order)
+{
+    return view('orders.edit', compact('order'));
+}
+
+public function update(Request $request, Order $order)
+{
+    $order->update($request->all());
+    return redirect()->route('orders.index');
+}
+
+public function destroy(Order $order)
+{
+    $order->delete();
+    return redirect()->route('orders.index');
+}
+Repeat similar methods for ParcelController, ShipmentController, etc.
+
+Step 7: Create Views
+Create views for each functionality under resources/views. For example, for orders:
+
+resources/views/orders/index.blade.php
+resources/views/orders/create.blade.php
+resources/views/orders/edit.blade.php
+resources/views/orders/show.blade.php
+Here’s a simple example for the index.blade.php view:
+
+blade
+Copy code
+@extends('layouts.app')
+
+@section('content')
+<h1>Orders</h1>
+<a href="{{ route('orders.create') }}">Add New Order</a>
+<ul>
+    @foreach($orders as $order)
+        <li>
+            {{ $order->customer_name }} - {{ $order->status }}
+            <a href="{{ route('orders.edit', $order) }}">Edit</a>
+            <form action="{{ route('orders.destroy', $order) }}" method="POST" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit">Delete</button>
+            </form>
+        </li>
+    @endforeach
+</ul>
+@endsection
+Step 8: Authentication and Authorization
+You may want to implement a simple authentication system to manage access to the dashboard. You can use Laravel's built-in authentication scaffolding. For this, run:
+
+bash
+Copy code
+composer require laravel/ui
+php artisan ui bootstrap --auth
+npm install && npm run dev
+Step 9: Implement Additional Functionalities
+Repeat the process for each functionality you need (managing parcels, shipments, notifications, payments, branches, staff, etc.). Use similar patterns for creating models, migrations, controllers, routes, and views.
+
+Step 10: Testing and Debugging
+Once you have all your functionalities implemented, test each one to ensure they work as expected. Debug any issues that arise and make adjustments as necessary.
+---------------------------------
+Creating a fully functional customer dashboard in Laravel with CRUD functionalities for managing various aspects like orders, parcels, shipments, payments, notifications, feedback, and user profiles requires a systematic approach. Below, I'll guide you step by step on how to set up each functionality in a Laravel application without using any packages or Jetstream.
+
+Step 1: Set Up Laravel
+Install Laravel: Make sure you have Composer installed. Then, run the following command in your terminal:
+
+bash
+Copy code
+composer create-project --prefer-dist laravel/laravel customer-dashboard
+Set Up Environment: Navigate to your project directory:
+
+bash
+Copy code
+cd customer-dashboard
+Set Up Database: Update the .env file with your database credentials:
+
+plaintext
+Copy code
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+Run Migrations: Create the necessary database tables:
+
+bash
+Copy code
+php artisan migrate
+Step 2: Create Models and Migrations
+Generate Models and Migrations: Create models and migrations for Order, Parcel, Shipment, Payment, Notification, and Profile.
+
+bash
+Copy code
+php artisan make:model Order -m
+php artisan make:model Parcel -m
+php artisan make:model Shipment -m
+php artisan make:model Payment -m
+php artisan make:model Notification -m
+php artisan make:model Profile -m
+Define Migration Schema: Open the migration files in database/migrations and define your schemas. Here's an example for each:
+
+Orders Migration:
+
+php
+Copy code
+public function up()
+{
+    Schema::create('orders', function (Blueprint $table) {
+        $table->id();
+        $table->string('customer_name');
+        $table->string('status');
+        $table->timestamps();
+    });
+}
+Parcels Migration:
+
+php
+Copy code
+public function up()
+{
+    Schema::create('parcels', function (Blueprint $table) {
+        $table->id();
+        $table->string('tracking_number');
+        $table->string('status');
+        $table->timestamps();
+    });
+}
+Shipments Migration:
+
+php
+Copy code
+public function up()
+{
+    Schema::create('shipments', function (Blueprint $table) {
+        $table->id();
+        $table->string('shipment_details');
+        $table->timestamps();
+    });
+}
+Payments Migration:
+
+php
+Copy code
+public function up()
+{
+    Schema::create('payments', function (Blueprint $table) {
+        $table->id();
+        $table->decimal('amount', 8, 2);
+        $table->string('status');
+        $table->timestamps();
+    });
+}
+Notifications Migration:
+
+php
+Copy code
+public function up()
+{
+    Schema::create('notifications', function (Blueprint $table) {
+        $table->id();
+        $table->string('message');
+        $table->boolean('is_read')->default(false);
+        $table->timestamps();
+    });
+}
+Profile Migration:
+
+php
+Copy code
+public function up()
+{
+    Schema::create('profiles', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->string('email')->unique();
+        $table->timestamps();
+    });
+}
+Run Migrations: Run the migrations to create the tables:
+
+bash
+Copy code
+php artisan migrate
+Step 3: Create Controllers
+Generate Controllers: Create a controller for each model to handle CRUD operations:
+
+bash
+Copy code
+php artisan make:controller OrderController
+php artisan make:controller ParcelController
+php artisan make:controller ShipmentController
+php artisan make:controller PaymentController
+php artisan make:controller NotificationController
+php artisan make:controller ProfileController
+Define CRUD Methods: For each controller, implement methods for create, read, update, and delete. Here’s an example for ParcelController.
+
+ParcelController:
+php
+Copy code
+namespace App\Http\Controllers;
+
+use App\Models\Parcel;
+use Illuminate\Http\Request;
+
+class ParcelController extends Controller
+{
+    public function index()
+    {
+        $parcels = Parcel::all();
+        return view('parcels.index', compact('parcels'));
+    }
+
+    public function create()
+    {
+        return view('parcels.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate(['tracking_number' => 'required', 'status' => 'required']);
+        Parcel::create($request->all());
+        return redirect()->route('parcels.index');
+    }
+
+    public function show($id)
+    {
+        $parcel = Parcel::findOrFail($id);
+        return view('parcels.show', compact('parcel'));
+    }
+
+    public function edit($id)
+    {
+        $parcel = Parcel::findOrFail($id);
+        return view('parcels.edit', compact('parcel'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate(['tracking_number' => 'required', 'status' => 'required']);
+        $parcel = Parcel::findOrFail($id);
+        $parcel->update($request->all());
+        return redirect()->route('parcels.index');
+    }
+
+    public function destroy($id)
+    {
+        $parcel = Parcel::findOrFail($id);
+        $parcel->delete();
+        return redirect()->route('parcels.index');
+    }
+}
+Step 4: Create Views
+Set Up Blade Templates: Create a folder structure under resources/views for each model (e.g., parcels, orders, etc.).
+
+Index View (resources/views/parcels/index.blade.php):
+
+blade
+Copy code
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parcels</title>
+</head>
+<body>
+    <h1>Parcels</h1>
+    <a href="{{ route('parcels.create') }}">Create Parcel</a>
+    <ul>
+        @foreach($parcels as $parcel)
+            <li>
+                {{ $parcel->tracking_number }} - {{ $parcel->status }}
+                <a href="{{ route('parcels.edit', $parcel->id) }}">Edit</a>
+                <form action="{{ route('parcels.destroy', $parcel->id) }}" method="POST" style="display:inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit">Delete</button>
+                </form>
+            </li>
+        @endforeach
+    </ul>
+</body>
+</html>
+Create View (resources/views/parcels/create.blade.php):
+
+blade
+Copy code
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Parcel</title>
+</head>
+<body>
+    <h1>Create Parcel</h1>
+    <form action="{{ route('parcels.store') }}" method="POST">
+        @csrf
+        <label for="tracking_number">Tracking Number:</label>
+        <input type="text" name="tracking_number" required>
+        <label for="status">Status:</label>
+        <input type="text" name="status" required>
+        <button type="submit">Create</button>
+    </form>
+</body>
+</html>
+Edit View (resources/views/parcels/edit.blade.php):
+
+blade
+Copy code
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Parcel</title>
+</head>
+<body>
+    <h1>Edit Parcel</h1>
+    <form action="{{ route('parcels.update', $parcel->id) }}" method="POST">
+        @csrf
+        @method('PUT')
+        <label for="tracking_number">Tracking Number:</label>
+        <input type="text" name="tracking_number" value="{{ $parcel->tracking_number }}" required>
+        <label for="status">Status:</label>
+        <input type="text" name="status" value="{{ $parcel->status }}" required>
+        <button type="submit">Update</button>
+    </form>
+</body>
+</html>
+Step 5: Define Routes
+Set Up Routes: Open routes/web.php and define the routes for each controller:
+
+php
+Copy code
+use App\Http\Controllers\ParcelController;
+
+Route::resource('parcels', ParcelController::class);
+Repeat for other controllers (OrderController, ShipmentController, PaymentController, etc.) to create respective routes.
+
+Step 6: Implement Other Functionalities
+Repeat the above steps (create models, migrations, controllers, views, and routes) for each functionality:
+
+Orders: Manage orders with similar CRUD operations.
+Shipments: Handle shipment details and tracking.
+Payments: Implement payment records.
+Notifications: Create notifications for user updates.
+Profile: Manage user profiles (view/edit).
+Step 7: Testing the Application
+Run the Application: Start the local development server:
+
+bash
+Copy code
+php artisan serve
+Access the Dashboard: Open your browser and go to http://localhost:8000/parcels (and respective routes for other functionalities) to access the dashboard and test the CRUD operations.
+------------------------------
+Creating a fully functional customer dashboard in Laravel involves multiple steps, from setting up the project to implementing CRUD (Create, Read, Update, Delete) functionalities for various components like orders, parcels, shipments, payments, notifications, and user profiles. Below, I'll guide you through each of these functionalities step-by-step, ensuring that it's accessible for someone without a technical background.
+
+Step 1: Setting Up Laravel Project
+Install Laravel: Ensure you have Composer installed on your machine, then create a new Laravel project.
+
+bash
+Copy code
+composer create-project --prefer-dist laravel/laravel customer-dashboard
+cd customer-dashboard
+Set Up Environment: Configure your .env file for database connection.
+
+plaintext
+Copy code
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+Run Migrations: Create necessary tables. You can create a migration for each component.
+
+bash
+Copy code
+php artisan make:migration create_orders_table
+php artisan make:migration create_parcels_table
+php artisan make:migration create_shipments_table
+php artisan make:migration create_payments_table
+php artisan make:migration create_notifications_table
+Example for create_orders_table migration:
+
+php
+Copy code
+// database/migrations/xxxx_xx_xx_xxxxxx_create_orders_table.php
+public function up()
+{
+    Schema::create('orders', function (Blueprint $table) {
+        $table->id();
+        $table->string('order_number');
+        $table->string('customer_name');
+        $table->string('status');
+        $table->timestamps();
+    });
+}
+Do similar setups for parcels, shipments, payments, and notifications.
+
+Run Migrations: Execute the migrations to create the tables in the database.
+
+bash
+Copy code
+php artisan migrate
+Step 2: Building Models and Controllers
+Create Models:
+
+bash
+Copy code
+php artisan make:model Order
+php artisan make:model Parcel
+php artisan make:model Shipment
+php artisan make:model Payment
+php artisan make:model Notification
+Create Controllers:
+
+bash
+Copy code
+php artisan make:controller OrderController
+php artisan make:controller ParcelController
+php artisan make:controller ShipmentController
+php artisan make:controller PaymentController
+php artisan make:controller NotificationController
+Step 3: Implementing CRUD Functionalities
+3.1 Orders
+Routes:
+
+In routes/web.php, add the following:
+
+php
+Copy code
+use App\Http\Controllers\OrderController;
+
+Route::resource('orders', OrderController::class);
+OrderController Example:
+
+php
+Copy code
+// app/Http/Controllers/OrderController.php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use Illuminate\Http\Request;
+
+class OrderController extends Controller
+{
+    public function index()
+    {
+        $orders = Order::all();
+        return view('orders.index', compact('orders'));
+    }
+
+    public function create()
+    {
+        return view('orders.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate(['order_number' => 'required', 'customer_name' => 'required']);
+        Order::create($request->all());
+        return redirect()->route('orders.index');
+    }
+
+    public function edit(Order $order)
+    {
+        return view('orders.edit', compact('order'));
+    }
+
+    public function update(Request $request, Order $order)
+    {
+        $request->validate(['order_number' => 'required', 'customer_name' => 'required']);
+        $order->update($request->all());
+        return redirect()->route('orders.index');
+    }
+
+    public function destroy(Order $order)
+    {
+        $order->delete();
+        return redirect()->route('orders.index');
+    }
+}
+Create and Edit Views:
+
+Create views for managing orders in resources/views/orders folder.
+
+index.blade.php: List all orders.
+create.blade.php: Form to create a new order.
+edit.blade.php: Form to edit an existing order.
+Example of create.blade.php:
+
+html
+Copy code
+<!-- resources/views/orders/create.blade.php -->
+<form action="{{ route('orders.store') }}" method="POST">
+    @csrf
+    <label for="order_number">Order Number:</label>
+    <input type="text" name="order_number" required>
+    <label for="customer_name">Customer Name:</label>
+    <input type="text" name="customer_name" required>
+    <button type="submit">Create Order</button>
+</form>
+3.2 Parcels
+Follow the same structure as for orders:
+
+Routes: routes/web.php
+
+php
+Copy code
+use App\Http\Controllers\ParcelController;
+
+Route::resource('parcels', ParcelController::class);
+Controller: ParcelController.php
+
+Example for ParcelController methods:
+
+php
+Copy code
+// app/Http/Controllers/ParcelController.php
+
+namespace App\Http\Controllers;
+
+use App\Models\Parcel;
+use Illuminate\Http\Request;
+
+class ParcelController extends Controller
+{
+    public function index()
+    {
+        $parcels = Parcel::all();
+        return view('parcels.index', compact('parcels'));
+    }
+
+    public function create()
+    {
+        return view('parcels.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate(['tracking_number' => 'required']);
+        Parcel::create($request->all());
+        return redirect()->route('parcels.index');
+    }
+
+    public function edit(Parcel $parcel)
+    {
+        return view('parcels.edit', compact('parcel'));
+    }
+
+    public function update(Request $request, Parcel $parcel)
+    {
+        $request->validate(['tracking_number' => 'required']);
+        $parcel->update($request->all());
+        return redirect()->route('parcels.index');
+    }
+
+    public function destroy(Parcel $parcel)
+    {
+        $parcel->delete();
+        return redirect()->route('parcels.index');
+    }
+}
+Create views similarly in resources/views/parcels.
+
+3.3 Shipments, Payments, Notifications
+Repeat the same pattern for shipments, payments, and notifications. Each should have a dedicated controller and views, similar to the orders and parcels examples.
+
+Step 4: User Profile and Tracking
+User Profile:
+
+Create a User model and controller to manage user profiles.
+Implement a similar CRUD structure to allow users to update their profile information.
+Order Tracking:
+
+Add a method in the OrderController to track orders, which may involve searching for an order by its tracking number and displaying its status.
+Step 5: Frontend Integration
+You can use simple HTML forms and tables in the Blade views to display the data. To enhance usability, consider using Bootstrap for styling.
+
+Example of a Simple Tracking Form
+html
+Copy code
+<!-- resources/views/orders/track.blade.php -->
+<form action="{{ route('orders.track') }}" method="POST">
+    @csrf
+    <label for="tracking_number">Enter Tracking Number:</label>
+    <input type="text" name="tracking_number" required>
+    <button type="submit">Track</button>
+</form>
+Step 6: Final Testing
+Test each functionality to ensure all CRUD operations work as expected.
+Check for validations and error handling.
+------------------------------------------
+----------------------------------------------
+Agent
+----------------------------------------------
+Creating a fully functional delivery agent dashboard in Laravel involves several steps. Below is a comprehensive guide on how to create this dashboard, focusing on key functionalities like changing the status of orders, parcels, shipments, payments, notifications, and managing feedback and profiles. This guide assumes you have a basic understanding of Laravel, but I'll keep it straightforward for non-IT persons.
+
+Step 1: Set Up Your Laravel Environment
+Install Laravel: Make sure you have Composer installed. Then run the following command to create a new Laravel project:
+
+bash
+Copy code
+composer create-project --prefer-dist laravel/laravel delivery-agent-dashboard
+Set Up Your Database:
+
+Create a new database in your database management tool (like phpMyAdmin).
+Update the .env file in your Laravel project with your database credentials:
+plaintext
+Copy code
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+Run Migrations: Laravel comes with default user authentication. To create the necessary tables, run:
+
+bash
+Copy code
+php artisan migrate
+Step 2: Create Models and Migrations
+We need models and corresponding migrations for Orders, Parcels, Shipments, Payments, Notifications, and Feedback.
+
+Create Models and Migrations: Run the following commands in your terminal:
+
+bash
+Copy code
+php artisan make:model Order -m
+php artisan make:model Parcel -m
+php artisan make:model Shipment -m
+php artisan make:model Payment -m
+php artisan make:model Notification -m
+php artisan make:model Feedback -m
+Define the Schema: Open the migrations located in database/migrations and define the tables. Here's an example for each:
+
+Orders Migration (create_orders_table.php):
+
+php
+Copy code
+public function up()
+{
+    Schema::create('orders', function (Blueprint $table) {
+        $table->id();
+        $table->string('status'); // e.g., Pending, Completed, Cancelled
+        $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        $table->timestamps();
+    });
+}
+Parcels Migration (create_parcels_table.php):
+
+php
+Copy code
+public function up()
+{
+    Schema::create('parcels', function (Blueprint $table) {
+        $table->id();
+        $table->string('description');
+        $table->foreignId('order_id')->constrained()->onDelete('cascade');
+        $table->timestamps();
+    });
+}
+Shipments Migration (create_shipments_table.php):
+
+php
+Copy code
+public function up()
+{
+    Schema::create('shipments', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('parcel_id')->constrained()->onDelete('cascade');
+        $table->string('status'); // e.g., In Transit, Delivered
+        $table->timestamps();
+    });
+}
+Payments Migration (create_payments_table.php):
+
+php
+Copy code
+public function up()
+{
+    Schema::create('payments', function (Blueprint $table) {
+        $table->id();
+        $table->decimal('amount', 8, 2);
+        $table->foreignId('order_id')->constrained()->onDelete('cascade');
+        $table->string('status'); // e.g., Paid, Unpaid
+        $table->timestamps();
+    });
+}
+Notifications Migration (create_notifications_table.php):
+
+php
+Copy code
+public function up()
+{
+    Schema::create('notifications', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        $table->string('message');
+        $table->timestamps();
+    });
+}
+Feedback Migration (create_feedback_table.php):
+
+php
+Copy code
+public function up()
+{
+    Schema::create('feedback', function (Blueprint $table) {
+        $table->id();
+        $table->foreignId('user_id')->constrained()->onDelete('cascade');
+        $table->text('comment');
+        $table->timestamps();
+    });
+}
+Run Migrations: Execute the migrations to create the tables in your database:
+
+bash
+Copy code
+php artisan migrate
+Step 3: Set Up Routes
+In routes/web.php, define routes for your dashboard functionalities:
+
+php
+Copy code
+use App\Http\Controllers\DashboardController;
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/order/{id}/status', [DashboardController::class, 'changeOrderStatus'])->name('order.changeStatus');
+    Route::post('/parcel/{id}/status', [DashboardController::class, 'changeParcelStatus'])->name('parcel.changeStatus');
+    Route::post('/shipment/{id}/status', [DashboardController::class, 'changeShipmentStatus'])->name('shipment.changeStatus');
+    Route::post('/payment/{id}/status', [DashboardController::class, 'changePaymentStatus'])->name('payment.changeStatus');
+    Route::post('/feedback', [DashboardController::class, 'submitFeedback'])->name('feedback.submit');
+    Route::get('/notifications', [DashboardController::class, 'notifications'])->name('notifications.index');
+});
+Step 4: Create the Dashboard Controller
+Run the following command to create a controller:
+
+bash
+Copy code
+php artisan make:controller DashboardController
+In app/Http/Controllers/DashboardController.php, implement the methods to handle requests:
+
+php
+Copy code
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Order;
+use App\Models\Parcel;
+use App\Models\Shipment;
+use App\Models\Payment;
+use App\Models\Notification;
+use App\Models\Feedback;
+
+class DashboardController extends Controller
+{
+    public function index()
+    {
+        $orders = Order::all();
+        $parcels = Parcel::all();
+        $shipments = Shipment::all();
+        $payments = Payment::all();
+        $notifications = Notification::all();
+
+        return view('dashboard.index', compact('orders', 'parcels', 'shipments', 'payments', 'notifications'));
+    }
+
+    public function changeOrderStatus($id, Request $request)
+    {
+        $order = Order::find($id);
+        $order->status = $request->status; // Assume status is passed in the request
+        $order->save();
+
+        return redirect()->back()->with('success', 'Order status updated successfully.');
+    }
+
+    public function changeParcelStatus($id, Request $request)
+    {
+        $parcel = Parcel::find($id);
+        $parcel->status = $request->status;
+        $parcel->save();
+
+        return redirect()->back()->with('success', 'Parcel status updated successfully.');
+    }
+
+    public function changeShipmentStatus($id, Request $request)
+    {
+        $shipment = Shipment::find($id);
+        $shipment->status = $request->status;
+        $shipment->save();
+
+        return redirect()->back()->with('success', 'Shipment status updated successfully.');
+    }
+
+    public function changePaymentStatus($id, Request $request)
+    {
+        $payment = Payment::find($id);
+        $payment->status = $request->status;
+        $payment->save();
+
+        return redirect()->back()->with('success', 'Payment status updated successfully.');
+    }
+
+    public function submitFeedback(Request $request)
+    {
+        $feedback = new Feedback();
+        $feedback->user_id = auth()->id();
+        $feedback->comment = $request->comment;
+        $feedback->save();
+
+        return redirect()->back()->with('success', 'Feedback submitted successfully.');
+    }
+
+    public function notifications()
+    {
+        $notifications = Notification::where('user_id', auth()->id())->get();
+        return view('dashboard.notifications', compact('notifications'));
+    }
+}
+Step 5: Create the Views
+Create Dashboard View: Create a new directory resources/views/dashboard and then create index.blade.php for the dashboard:
+
+blade
+Copy code
+<!-- resources/views/dashboard/index.blade.php -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delivery Agent Dashboard</title>
+</head>
+<body>
+    <h1>Delivery Agent Dashboard</h1>
+
+    <h2>Orders</h2>
+    <ul>
+        @foreach($orders as $order)
+            <li>
+                Order ID: {{ $order->id }} - Status: {{ $order->status }}
+                <form method="POST" action="{{ route('order.changeStatus', $order->id) }}">
+                    @csrf
+                    <select name="status">
+                        <option value="Pending">Pending</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <button type="submit">Update Status</button>
+                </form>
+            </li>
+        @endforeach
+    </ul>
+
+    <h2>Parcels</h2>
+    <ul>
+        @foreach($parcels as $parcel)
+            <li>
+                Parcel ID: {{ $parcel->id }} - Description: {{ $parcel->description }}
+                <form method="POST" action="{{ route('parcel.changeStatus', $parcel->id) }}">
+                    @csrf
+                    <select name="status">
+                        <option value="In Transit">In Transit</option>
+                        <option value="Delivered">Delivered</option>
+                    </select>
+                    <button type="submit">Update Status</button>
+                </form>
+            </li>
+        @endforeach
+    </ul>
+
+    <!-- Repeat similar sections for Shipments, Payments, and Notifications -->
+    
+    <h2>Feedback</h2>
+    <form method="POST" action="{{ route('feedback.submit') }}">
+        @csrf
+        <textarea name="comment" required></textarea>
+        <button type="submit">Submit Feedback</button>
+    </form>
+</body>
+</html>
+Create Notifications View: Create notifications.blade.php for displaying notifications:
+
+blade
+Copy code
+<!-- resources/views/dashboard/notifications.blade.php -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notifications</title>
+</head>
+<body>
+    <h1>Your Notifications</h1>
+    <ul>
+        @foreach($notifications as $notification)
+            <li>{{ $notification->message }}</li>
+        @endforeach
+    </ul>
+    <a href="{{ route('dashboard') }}">Back to Dashboard</a>
+</body>
+</html>
+Step 6: Authentication
+For authentication, you can use Laravel's built-in authentication. Run the following command to scaffold the authentication:
+
+bash
+Copy code
+composer require laravel/ui
+php artisan ui bootstrap --auth
+npm install && npm run dev
+Step 7: Testing the Application
+Run the Laravel Development Server: Start the server by running:
+
+bash
+Copy code
+php artisan serve
+Access Your Application: Open your browser and go to http://localhost:8000. Register a new user, log in, and you should see your delivery agent dashboard.
+
+Conclusion
+You now have a basic delivery agent dashboard where you can manage orders, parcels, shipments, payments, notifications, and feedback without using any packages or Jetstream. This setup is a starting point, and you can expand it further by adding features like real-time notifications, search functionality, and better user interface designs.
+
+--------------------------------
+----------------------------------
+Admin
+----------------------------------
+1. Database Structure
+Migration Files
+You'll need migrations for the following tables: users, orders, parcels, shipments, payments, notifications, and customers.
+
+Create Users Table
+
+php
+Copy code
+php artisan make:migration create_users_table
+php
+Copy code
+Schema::create('users', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->string('password');
+    $table->timestamps();
+});
+Create Orders Table
+
+php
+Copy code
+php artisan make:migration create_orders_table
+php
+Copy code
+Schema::create('orders', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('customer_id')->constrained()->onDelete('cascade');
+    $table->string('status'); // Pending, Completed, Canceled, etc.
+    $table->timestamps();
+});
+Create Parcels Table
+
+php
+Copy code
+php artisan make:migration create_parcels_table
+php
+Copy code
+Schema::create('parcels', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('order_id')->constrained()->onDelete('cascade');
+    $table->string('weight');
+    $table->string('dimensions');
+    $table->timestamps();
+});
+Create Shipments Table
+
+php
+Copy code
+php artisan make:migration create_shipments_table
+php
+Copy code
+Schema::create('shipments', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('parcel_id')->constrained()->onDelete('cascade');
+    $table->string('tracking_number');
+    $table->timestamps();
+});
+Create Payments Table
+
+php
+Copy code
+php artisan make:migration create_payments_table
+php
+Copy code
+Schema::create('payments', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('order_id')->constrained()->onDelete('cascade');
+    $table->decimal('amount', 8, 2);
+    $table->string('status'); // Pending, Completed, Failed, etc.
+    $table->timestamps();
+});
+Create Notifications Table
+
+php
+Copy code
+php artisan make:migration create_notifications_table
+php
+Copy code
+Schema::create('notifications', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->string('message');
+    $table->timestamps();
+});
+Create Customers Table
+
+php
+Copy code
+php artisan make:migration create_customers_table
+php
+Copy code
+Schema::create('customers', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->string('phone');
+    $table->timestamps();
+});
+After defining your migrations, run:
+
+bash
+Copy code
+php artisan migrate
+2. Models
+Create models for each table.
+
+User Model
+
+php
+Copy code
+php artisan make:model User
+Order Model
+
+php
+Copy code
+php artisan make:model Order
+Parcel Model
+
+php
+Copy code
+php artisan make:model Parcel
+Shipment Model
+
+php
+Copy code
+php artisan make:model Shipment
+Payment Model
+
+php
+Copy code
+php artisan make:model Payment
+Notification Model
+
+php
+Copy code
+php artisan make:model Notification
+Customer Model
+
+php
+Copy code
+php artisan make:model Customer
+3. Controllers
+Create controllers for each model to handle CRUD operations.
+
+AdminController
+
+bash
+Copy code
+php artisan make:controller AdminController
+php
+Copy code
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use App\Models\Order;
+use App\Models\Parcel;
+use App\Models\Shipment;
+use App\Models\Payment;
+use App\Models\Notification;
+use App\Models\Customer;
+use Illuminate\Http\Request;
+
+class AdminController extends Controller
+{
+    // Profile Management
+    public function viewProfile()
+    {
+        $user = auth()->user();
+        return view('admin.profile', compact('user'));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255',
+        ]);
+
+        $user = auth()->user();
+        $user->update($request->only('name', 'email'));
+
+        return redirect()->back()->with('success', 'Profile updated successfully.');
+    }
+
+    // Orders Management
+    public function indexOrders()
+    {
+        $orders = Order::with('customer')->get();
+        return view('admin.orders.index', compact('orders'));
+    }
+
+    public function createOrder(Request $request)
+    {
+        $request->validate(['customer_id' => 'required|exists:customers,id']);
+        Order::create($request->all());
+        return redirect()->route('admin.orders.index')->with('success', 'Order created successfully.');
+    }
+
+    public function editOrder(Order $order)
+    {
+        return view('admin.orders.edit', compact('order'));
+    }
+
+    public function updateOrder(Request $request, Order $order)
+    {
+        $order->update($request->all());
+        return redirect()->route('admin.orders.index')->with('success', 'Order updated successfully.');
+    }
+
+    public function destroyOrder(Order $order)
+    {
+        $order->delete();
+        return redirect()->route('admin.orders.index')->with('success', 'Order deleted successfully.');
+    }
+
+    // Repeat similar CRUD methods for Parcels, Shipments, Payments, Notifications, Customers
+}
+4. Routes
+Define routes for your admin dashboard in routes/web.php.
+
+php
+Copy code
+use App\Http\Controllers\AdminController;
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/admin/profile', [AdminController::class, 'viewProfile'])->name('admin.profile');
+    Route::post('/admin/profile', [AdminController::class, 'updateProfile'])->name('admin.profile.update');
+
+    Route::resource('admin/orders', AdminController::class);
+    Route::resource('admin/parcels', AdminController::class);
+    Route::resource('admin/shipments', AdminController::class);
+    Route::resource('admin/payments', AdminController::class);
+    Route::resource('admin/notifications', AdminController::class);
+    Route::resource('admin/customers', AdminController::class);
+});
+5. Views
+Create views for each section (e.g., orders, parcels, etc.). Here’s a basic structure for orders.
+
+resources/views/admin/orders/index.blade.php
+
+blade
+Copy code
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <h1>Orders</h1>
+    <a href="{{ route('admin.orders.create') }}" class="btn btn-primary">Create Order</a>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($orders as $order)
+            <tr>
+                <td>{{ $order->id }}</td>
+                <td>{{ $order->customer->name }}</td>
+                <td>{{ $order->status }}</td>
+                <td>
+                    <a href="{{ route('admin.orders.edit', $order) }}" class="btn btn-warning">Edit</a>
+                    <form action="{{ route('admin.orders.destroy', $order) }}" method="POST" style="display:inline;">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endsection
+Repeat similar structures for parcels, shipments, payments, notifications, and customers.
+
+6. Tracking Orders
+For tracking orders, you can add a method in the AdminController.
+
+php
+Copy code
+public function trackOrder(Order $order)
+{
+    $parcels = Parcel::where('order_id', $order->id)->get();
+    return view('admin.orders.track', compact('order', 'parcels'));
+}
+7. Summary
+This setup provides a foundational structure for your admin dashboard with CRUD functionalities for the various entities and a profile management feature. Make sure to create appropriate views for parcels, shipments, payments, notifications, and customers, similar to the orders section.
+
+------------------------------------------------------------------------
+---------------------------
+Customer
+------------------------------------
+Creating a fully functional customer dashboard in Laravel involves several steps, including setting up your database structure, creating models, controllers, and views, and implementing CRUD operations for various entities. Below is a comprehensive guide to building such a dashboard, focusing on functionalities like viewing and changing profiles, adding parcels, orders, shipments, payments, and tracking orders without using any packages or Jetstream.
+
+Step 1: Setting Up Database Structure
+First, you'll need to create the database tables for your application. Here are the suggested tables and their structures:
+
+Migration Files
+Create Users Table
+
+php
+Copy code
+php artisan make:migration create_users_table
+php
+Copy code
+Schema::create('users', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->string('password');
+    $table->timestamps();
+});
+Create Orders Table
+
+php
+Copy code
+php artisan make:migration create_orders_table
+php
+Copy code
+Schema::create('orders', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->string('description');
+    $table->decimal('amount', 10, 2);
+    $table->timestamps();
+});
+Create Parcels Table
+
+php
+Copy code
+php artisan make:migration create_parcels_table
+php
+Copy code
+Schema::create('parcels', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->string('weight');
+    $table->string('dimensions');
+    $table->timestamps();
+});
+Create Shipments Table
+
+php
+Copy code
+php artisan make:migration create_shipments_table
+php
+Copy code
+Schema::create('shipments', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->foreignId('parcel_id')->constrained()->onDelete('cascade');
+    $table->string('tracking_number')->unique();
+    $table->string('status');
+    $table->timestamps();
+});
+Create Payments Table
+
+php
+Copy code
+php artisan make:migration create_payments_table
+php
+Copy code
+Schema::create('payments', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->foreignId('order_id')->constrained()->onDelete('cascade');
+    $table->decimal('amount', 10, 2);
+    $table->string('status');
+    $table->timestamps();
+});
+Create Notifications Table
+
+php
+Copy code
+php artisan make:migration create_notifications_table
+php
+Copy code
+Schema::create('notifications', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->string('message');
+    $table->boolean('read')->default(false);
+    $table->timestamps();
+});
+Run the migrations:
+
+bash
+Copy code
+php artisan migrate
+Step 2: Creating Models
+Create models for each table:
+
+bash
+Copy code
+php artisan make:model User
+php artisan make:model Order
+php artisan make:model Parcel
+php artisan make:model Shipment
+php artisan make:model Payment
+php artisan make:model Notification
+Step 3: Creating Controllers
+You will need controllers to handle requests related to each model. Here are some examples:
+
+UserController
+
+bash
+Copy code
+php artisan make:controller UserController
+php
+Copy code
+use App\Models\User;
+use Illuminate\Http\Request;
+
+class UserController extends Controller
+{
+    public function profile()
+    {
+        return view('user.profile', ['user' => auth()->user()]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . auth()->id(),
+        ]);
+
+        $user = auth()->user();
+        $user->update($request->only('name', 'email'));
+
+        return redirect()->back()->with('success', 'Profile updated successfully!');
+    }
+}
+OrderController
+
+bash
+Copy code
+php artisan make:controller OrderController
+php
+Copy code
+use App\Models\Order;
+use Illuminate\Http\Request;
+
+class OrderController extends Controller
+{
+    public function index()
+    {
+        $orders = auth()->user()->orders;
+        return view('orders.index', compact('orders'));
+    }
+
+    public function create()
+    {
+        return view('orders.create');
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'description' => 'required|string|max:255',
+            'amount' => 'required|numeric',
+        ]);
+
+        auth()->user()->orders()->create($request->only('description', 'amount'));
+
+        return redirect()->route('orders.index')->with('success', 'Order created successfully!');
+    }
+
+    public function edit(Order $order)
+    {
+        return view('orders.edit', compact('order'));
+    }
+
+    public function update(Request $request, Order $order)
+    {
+        $request->validate([
+            'description' => 'required|string|max:255',
+            'amount' => 'required|numeric',
+        ]);
+
+        $order->update($request->only('description', 'amount'));
+
+        return redirect()->route('orders.index')->with('success', 'Order updated successfully!');
+    }
+
+    public function destroy(Order $order)
+    {
+        $order->delete();
+        return redirect()->route('orders.index')->with('success', 'Order deleted successfully!');
+    }
+}
+ParcelController, ShipmentController, PaymentController, NotificationController
+
+You will create similar controllers for Parcels, Shipments, Payments, and Notifications. They will follow the same structure as the OrderController, adjusting for their specific data.
+Step 4: Setting Up Routes
+Define routes in routes/web.php:
+
+php
+Copy code
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ParcelController;
+use App\Http\Controllers\ShipmentController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\NotificationController;
+
+Route::middleware(['auth'])->group(function () {
+    // User routes
+    Route::get('/profile', [UserController::class, 'profile'])->name('profile');
+    Route::post('/profile/update', [UserController::class, 'updateProfile'])->name('profile.update');
+
+    // Order routes
+    Route::resource('orders', OrderController::class);
+
+    // Parcel routes
+    Route::resource('parcels', ParcelController::class);
+
+    // Shipment routes
+    Route::resource('shipments', ShipmentController::class);
+
+    // Payment routes
+    Route::resource('payments', PaymentController::class);
+
+    // Notification routes
+    Route::resource('notifications', NotificationController::class);
+});
+Step 5: Creating Views
+You will need to create views for displaying and managing the various functionalities. For simplicity, I'll provide an example for the orders.
+
+orders/index.blade.php
+
+blade
+Copy code
+@extends('layouts.app')
+
+@section('content')
+<div>
+    <h1>Orders</h1>
+    <a href="{{ route('orders.create') }}">Add Order</a>
+    @foreach ($orders as $order)
+        <div>
+            <h2>{{ $order->description }}</h2>
+            <p>Amount: {{ $order->amount }}</p>
+            <a href="{{ route('orders.edit', $order) }}">Edit</a>
+            <form action="{{ route('orders.destroy', $order) }}" method="POST">
+                @csrf
+                @method('DELETE')
+                <button type="submit">Delete</button>
+            </form>
+        </div>
+    @endforeach
+</div>
+@endsection
+orders/create.blade.php
+
+blade
+Copy code
+@extends('layouts.app')
+
+@section('content')
+<div>
+    <h1>Add Order</h1>
+    <form action="{{ route('orders.store') }}" method="POST">
+        @csrf
+        <label for="description">Description:</label>
+        <input type="text" name="description" required>
+        <label for="amount">Amount:</label>
+        <input type="number" name="amount" step="0.01" required>
+        <button type="submit">Create Order</button>
+    </form>
+</div>
+@endsection
+orders/edit.blade.php
+
+blade
+Copy code
+@extends('layouts.app')
+
+@section('content')
+<div>
+    <h1>Edit Order</h1>
+    <form action="{{ route('orders.update', $order) }}" method="POST">
+        @csrf
+        @method('PUT')
+        <label for="description">Description:</label>
+        <input type="text" name="description" value="{{ $order->description }}" required>
+        <label for="amount">Amount:</label>
+        <input type="number" name="amount" value="{{ $order->amount }}" step="0.01" required>
+        <button type="submit">Update Order</button>
+    </form>
+</div>
+@endsection
+Step 6: Tracking Orders
+To implement order tracking, you can create a dedicated route and controller method in the ShipmentController:
+
+ShipmentController
+
+php
+Copy code
+public function track(Request $request)
+{
+    $request->validate([
+        'tracking_number' => 'required|string',
+    ]);
+
+    $shipment = Shipment::where('tracking_number', $request->tracking_number)->first();
+
+    if ($shipment) {
+        return view('shipments.track', compact('shipment'));
+    }
+
+    return redirect()->back()->with('error', 'Tracking number not found.');
+}
+View for Tracking
+
+blade
+Copy code
+@extends('layouts.app')
+
+@section('content')
+<div>
+    <h1>Track Shipment</h1>
+    <form action="{{ route('shipments.track') }}" method="POST">
+        @csrf
+        <input type="text" name="tracking_number" placeholder="Enter tracking number" required>
+        <button type="submit">Track</button>
+    </form>
+
+    @if(isset($shipment))
+        <h2>Tracking Status: {{ $shipment->status }}</h2>
+    @endif
+</div>
+@endsection
+Step 7: Authentication
+Ensure you have user authentication set up using Laravel's built-in authentication. You can create the authentication scaffolding using:
+
+bash
+Copy code
+composer require laravel/ui
+php artisan ui bootstrap --auth
+npm install && npm run dev
+Step 8: Final Steps
+Ensure your routes and views are correctly set up.
+Implement form validation and error handling in each controller method.
+Test each functionality to ensure they work as expected.

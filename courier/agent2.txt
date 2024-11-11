@@ -1,0 +1,253 @@
+Profile Management (change password, email, etc.)
+Change Order Status (e.g., Pending, Delivered)
+Change Parcel Status (e.g., In Transit, Delivered)
+Change Shipping Status (e.g., Pending, Shipped)
+Change Payment Status (e.g., Pending, Paid)
+1. Database Structure (MySQL)
+Let's create the following tables:
+
+delivery_agents Table (to store agent profiles)
+sql
+Copy code
+CREATE TABLE delivery_agents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(15),
+    address TEXT,
+    status ENUM('active', 'inactive') DEFAULT 'active'
+);
+orders Table (stores order details)
+sql
+Copy code
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_email VARCHAR(100) NOT NULL,
+    address TEXT NOT NULL,
+    parcel_status ENUM('pending', 'in transit', 'delivered') DEFAULT 'pending',
+    shipping_status ENUM('pending', 'shipped') DEFAULT 'pending',
+    payment_status ENUM('pending', 'paid') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+order_status_log Table (for storing history of changes)
+sql
+Copy code
+CREATE TABLE order_status_log (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    status_change VARCHAR(255),
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+2. Basic Functionality in PHP
+Here are the basic functionalities you’ll need to handle:
+
+(1) Profile Management - Update Profile & Change Password
+php
+Copy code
+// profile.php - Update agent's profile information
+session_start();
+include("db_connect.php"); // Database connection
+
+// Check if user is logged in
+if (!isset($_SESSION['agent_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$agent_id = $_SESSION['agent_id'];
+
+// Fetch current profile info
+$query = "SELECT * FROM delivery_agents WHERE id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $agent_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$agent = $result->fetch_assoc();
+
+// Handle profile update
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $name = $_POST['name'];
+    $email = $_POST['email'];
+    $phone = $_POST['phone'];
+    $address = $_POST['address'];
+
+    // Update the profile
+    $update_query = "UPDATE delivery_agents SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?";
+    $stmt = $conn->prepare($update_query);
+    $stmt->bind_param("ssssi", $name, $email, $phone, $address, $agent_id);
+    
+    if ($stmt->execute()) {
+        echo "Profile updated successfully!";
+    } else {
+        echo "Error updating profile.";
+    }
+}
+?>
+
+<!-- profile.php - HTML form for updating profile -->
+<form method="POST">
+    <label>Name</label>
+    <input type="text" name="name" value="<?php echo $agent['name']; ?>" required>
+    <label>Email</label>
+    <input type="email" name="email" value="<?php echo $agent['email']; ?>" required>
+    <label>Phone</label>
+    <input type="text" name="phone" value="<?php echo $agent['phone']; ?>">
+    <label>Address</label>
+    <textarea name="address"><?php echo $agent['address']; ?></textarea>
+    <button type="submit">Update Profile</button>
+</form>
+(2) Change Order Status
+php
+Copy code
+// change_order_status.php - Update order status
+session_start();
+include("db_connect.php");
+
+if (!isset($_SESSION['agent_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$order_id = $_GET['order_id']; // Order ID passed through URL
+
+// Fetch current order details
+$query = "SELECT * FROM orders WHERE order_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $order_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$order = $result->fetch_assoc();
+
+// Handle order status change
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $new_status = $_POST['status'];
+    
+    // Update order status
+    $update_query = "UPDATE orders SET parcel_status = ? WHERE order_id = ?";
+    $stmt = $conn->prepare($update_query);
+    $stmt->bind_param("si", $new_status, $order_id);
+    
+    if ($stmt->execute()) {
+        // Log status change
+        $status_log = "Order status changed to '$new_status'.";
+        $log_query = "INSERT INTO order_status_log (order_id, status_change) VALUES (?, ?)";
+        $log_stmt = $conn->prepare($log_query);
+        $log_stmt->bind_param("is", $order_id, $status_log);
+        $log_stmt->execute();
+        
+        echo "Order status updated!";
+    } else {
+        echo "Error updating order status.";
+    }
+}
+?>
+
+<!-- change_order_status.php - HTML form for changing order status -->
+<form method="POST">
+    <label>Order Status</label>
+    <select name="status">
+        <option value="pending" <?php echo $order['parcel_status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
+        <option value="in transit" <?php echo $order['parcel_status'] == 'in transit' ? 'selected' : ''; ?>>In Transit</option>
+        <option value="delivered" <?php echo $order['parcel_status'] == 'delivered' ? 'selected' : ''; ?>>Delivered</option>
+    </select>
+    <button type="submit">Update Status</button>
+</form>
+(3) Change Shipping Status
+php
+Copy code
+// change_shipping_status.php - Update shipping status
+session_start();
+include("db_connect.php");
+
+if (!isset($_SESSION['agent_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$order_id = $_GET['order_id']; // Order ID passed through URL
+
+// Fetch current order details
+$query = "SELECT * FROM orders WHERE order_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $order_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$order = $result->fetch_assoc();
+
+// Handle shipping status change
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $new_status = $_POST['status'];
+    
+    // Update shipping status
+    $update_query = "UPDATE orders SET shipping_status = ? WHERE order_id = ?";
+    $stmt = $conn->prepare($update_query);
+    $stmt->bind_param("si", $new_status, $order_id);
+    
+    if ($stmt->execute()) {
+        echo "Shipping status updated!";
+    } else {
+        echo "Error updating shipping status.";
+    }
+}
+?>
+
+<!-- change_shipping_status.php - HTML form for changing shipping status -->
+<form method="POST">
+    <label>Shipping Status</label>
+    <select name="status">
+        <option value="pending" <?php echo $order['shipping_status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
+        <option value="shipped" <?php echo $order['shipping_status'] == 'shipped' ? 'selected' : ''; ?>>Shipped</option>
+    </select>
+    <button type="submit">Update Shipping Status</button>
+</form>
+(4) Change Payment Status
+php
+Copy code
+// change_payment_status.php - Update payment status
+session_start();
+include("db_connect.php");
+
+if (!isset($_SESSION['agent_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$order_id = $_GET['order_id']; // Order ID passed through URL
+
+// Fetch current order details
+$query = "SELECT * FROM orders WHERE order_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $order_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$order = $result->fetch_assoc();
+
+// Handle payment status change
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $new_status = $_POST['status'];
+    
+    // Update payment status
+    $update_query = "UPDATE orders SET payment_status = ? WHERE order_id = ?";
+    $stmt = $conn->prepare($update_query);
+    $stmt->bind_param("si", $new_status, $order_id);
+    
+    if ($stmt->execute()) {
+        echo "Payment status updated!";
+    } else {
+        echo "Error updating payment status.";
+    }
+}
+?>
+
+<!-- change_payment_status.php - HTML form for changing payment status -->
+<form method="POST">
+    <label>Payment Status</label>
+    <select name="status">
+        <option value="pending" <?php echo $order['payment_status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
+        <option value="paid" <?php echo $order['payment_status'] == 'paid' ? 'selected' : ''; ?>>Paid</option>
+    </select>
+    <button type="submit">Update Payment Status</button>
+</form>

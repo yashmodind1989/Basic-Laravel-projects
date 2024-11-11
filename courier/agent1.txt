@@ -1,0 +1,178 @@
+1. Database Structure
+Tables to Create
+sql
+Copy code
+-- Table for delivery agents
+CREATE TABLE delivery_agents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    phone VARCHAR(15),
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for orders
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tracking_number VARCHAR(50) NOT NULL UNIQUE,
+    customer_name VARCHAR(255),
+    customer_address TEXT,
+    delivery_agent_id INT,
+    parcel_status ENUM('pending', 'in transit', 'delivered', 'returned') DEFAULT 'pending',
+    shipping_status ENUM('not_shipped', 'shipped', 'in_transit', 'delivered') DEFAULT 'not_shipped',
+    payment_status ENUM('unpaid', 'paid', 'failed') DEFAULT 'unpaid',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (delivery_agent_id) REFERENCES delivery_agents(id)
+);
+2. PHP Code Structure
+config.php - Database Configuration
+php
+Copy code
+<?php
+// Database connection configuration
+$host = 'localhost'; // or your server address
+$dbname = 'courier_system';
+$username = 'root'; // your MySQL username
+$password = ''; // your MySQL password
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo "Connection failed: " . $e->getMessage();
+}
+?>
+login.php - Delivery Agent Login
+php
+Copy code
+<?php
+session_start();
+require 'config.php';
+
+if (isset($_POST['submit'])) {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+
+    $stmt = $pdo->prepare("SELECT * FROM delivery_agents WHERE email = ?");
+    $stmt->execute([$email]);
+    $agent = $stmt->fetch();
+
+    if ($agent && password_verify($password, $agent['password'])) {
+        $_SESSION['agent_id'] = $agent['id'];
+        $_SESSION['name'] = $agent['name'];
+        header('Location: dashboard.php');
+    } else {
+        echo "Invalid credentials.";
+    }
+}
+?>
+
+<form method="post">
+    <label>Email:</label>
+    <input type="email" name="email" required>
+    <label>Password:</label>
+    <input type="password" name="password" required>
+    <button type="submit" name="submit">Login</button>
+</form>
+dashboard.php - Delivery Agent Dashboard
+php
+Copy code
+<?php
+session_start();
+require 'config.php';
+
+if (!isset($_SESSION['agent_id'])) {
+    header('Location: login.php');
+    exit();
+}
+
+$agent_id = $_SESSION['agent_id'];
+$stmt = $pdo->prepare("SELECT * FROM orders WHERE delivery_agent_id = ?");
+$stmt->execute([$agent_id]);
+$orders = $stmt->fetchAll();
+?>
+
+<h1>Welcome, <?= $_SESSION['name'] ?></h1>
+<h2>Orders Assigned to You</h2>
+<table>
+    <tr>
+        <th>Tracking Number</th>
+        <th>Parcel Status</th>
+        <th>Shipping Status</th>
+        <th>Payment Status</th>
+        <th>Actions</th>
+    </tr>
+    <?php foreach ($orders as $order): ?>
+    <tr>
+        <td><?= $order['tracking_number'] ?></td>
+        <td><?= $order['parcel_status'] ?></td>
+        <td><?= $order['shipping_status'] ?></td>
+        <td><?= $order['payment_status'] ?></td>
+        <td>
+            <a href="update_order.php?order_id=<?= $order['id'] ?>">Edit</a>
+        </td>
+    </tr>
+    <?php endforeach; ?>
+</table>
+update_order.php - Change Order Details
+php
+Copy code
+<?php
+session_start();
+require 'config.php';
+
+if (!isset($_SESSION['agent_id'])) {
+    header('Location: login.php');
+    exit();
+}
+
+if (isset($_GET['order_id'])) {
+    $order_id = $_GET['order_id'];
+
+    $stmt = $pdo->prepare("SELECT * FROM orders WHERE id = ?");
+    $stmt->execute([$order_id]);
+    $order = $stmt->fetch();
+
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+        $parcel_status = $_POST['parcel_status'];
+        $shipping_status = $_POST['shipping_status'];
+        $payment_status = $_POST['payment_status'];
+
+        $stmt = $pdo->prepare("UPDATE orders SET parcel_status = ?, shipping_status = ?, payment_status = ? WHERE id = ?");
+        $stmt->execute([$parcel_status, $shipping_status, $payment_status, $order_id]);
+
+        header('Location: dashboard.php');
+    }
+}
+?>
+
+<h2>Edit Order</h2>
+<form method="post">
+    <label>Parcel Status:</label>
+    <select name="parcel_status">
+        <option value="pending" <?= $order['parcel_status'] == 'pending' ? 'selected' : '' ?>>Pending</option>
+        <option value="in transit" <?= $order['parcel_status'] == 'in transit' ? 'selected' : '' ?>>In Transit</option>
+        <option value="delivered" <?= $order['parcel_status'] == 'delivered' ? 'selected' : '' ?>>Delivered</option>
+        <option value="returned" <?= $order['parcel_status'] == 'returned' ? 'selected' : '' ?>>Returned</option>
+    </select>
+
+    <label>Shipping Status:</label>
+    <select name="shipping_status">
+        <option value="not_shipped" <?= $order['shipping_status'] == 'not_shipped' ? 'selected' : '' ?>>Not Shipped</option>
+        <option value="shipped" <?= $order['shipping_status'] == 'shipped' ? 'selected' : '' ?>>Shipped</option>
+        <option value="in_transit" <?= $order['shipping_status'] == 'in_transit' ? 'selected' : '' ?>>In Transit</option>
+        <option value="delivered" <?= $order['shipping_status'] == 'delivered' ? 'selected' : '' ?>>Delivered</option>
+    </select>
+
+    <label>Payment Status:</label>
+    <select name="payment_status">
+        <option value="unpaid" <?= $order['payment_status'] == 'unpaid' ? 'selected' : '' ?>>Unpaid</option>
+        <option value="paid" <?= $order['payment_status'] == 'paid' ? 'selected' : '' ?>>Paid</option>
+        <option value="failed" <?= $order['payment_status'] == 'failed' ? 'selected' : '' ?>>Failed</option>
+    </select>
+
+    <button type="submit">Update Order</button>
+</form>

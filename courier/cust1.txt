@@ -1,0 +1,271 @@
+1. Database Structure (MySQL)
+Here are the basic tables for the system:
+
+sql
+Copy code
+-- User Table: Stores customer information
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    phone_number VARCHAR(15),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Orders Table: Stores order details
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    order_status ENUM('pending', 'processed', 'shipped', 'delivered') DEFAULT 'pending',
+    total_amount DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- Parcels Table: Stores parcel details for each order
+CREATE TABLE parcels (
+    parcel_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    weight DECIMAL(10, 2) NOT NULL,
+    dimensions VARCHAR(255) NOT NULL,
+    content_description TEXT,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+
+-- Payments Table: Stores payment details
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    payment_method ENUM('credit_card', 'paypal', 'bank_transfer') NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+
+-- Notifications Table: Stores system notifications
+CREATE TABLE notifications (
+    notification_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- Shipments Table: Tracks shipment status
+CREATE TABLE shipments (
+    shipment_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    tracking_number VARCHAR(255) NOT NULL,
+    shipment_status ENUM('processing', 'shipped', 'in_transit', 'delivered') DEFAULT 'processing',
+    dispatched_at TIMESTAMP,
+    delivered_at TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+2. PHP Code Structure
+Let's assume you have the following structure in your project:
+
+diff
+Copy code
+- index.php
+- profile.php
+- create_order.php
+- create_parcel.php
+- create_payment.php
+- create_notification.php
+- create_shipment.php
+- db.php (database connection)
+- assets/
+  - styles.css
+  - scripts.js
+db.php (Database Connection)
+php
+Copy code
+<?php
+$host = 'localhost';
+$dbname = 'courier_system';
+$username = 'root'; // Change to your MySQL username
+$password = ''; // Change to your MySQL password
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+?>
+create_order.php (Creating an Order)
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id']; // Assume user is logged in
+    $total_amount = $_POST['total_amount'];
+
+    $stmt = $pdo->prepare("INSERT INTO orders (user_id, total_amount) VALUES (?, ?)");
+    $stmt->execute([$user_id, $total_amount]);
+
+    $order_id = $pdo->lastInsertId(); // Get the last inserted order ID
+
+    echo "Order created successfully! Order ID: " . $order_id;
+}
+?>
+
+<form method="POST" action="create_order.php">
+    <label for="total_amount">Total Amount</label>
+    <input type="number" name="total_amount" required>
+    <button type="submit">Create Order</button>
+</form>
+create_parcel.php (Creating a Parcel)
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $order_id = $_POST['order_id'];
+    $weight = $_POST['weight'];
+    $dimensions = $_POST['dimensions'];
+    $content_description = $_POST['content_description'];
+
+    $stmt = $pdo->prepare("INSERT INTO parcels (order_id, weight, dimensions, content_description) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$order_id, $weight, $dimensions, $content_description]);
+
+    echo "Parcel created successfully!";
+}
+?>
+
+<form method="POST" action="create_parcel.php">
+    <label for="order_id">Order ID</label>
+    <input type="number" name="order_id" required>
+
+    <label for="weight">Weight</label>
+    <input type="number" name="weight" required>
+
+    <label for="dimensions">Dimensions</label>
+    <input type="text" name="dimensions" required>
+
+    <label for="content_description">Content Description</label>
+    <textarea name="content_description" required></textarea>
+
+    <button type="submit">Create Parcel</button>
+</form>
+create_payment.php (Creating a Payment)
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $order_id = $_POST['order_id'];
+    $payment_method = $_POST['payment_method'];
+    $amount = $_POST['amount'];
+
+    $stmt = $pdo->prepare("INSERT INTO payments (order_id, payment_method, amount) VALUES (?, ?, ?)");
+    $stmt->execute([$order_id, $payment_method, $amount]);
+
+    echo "Payment created successfully!";
+}
+?>
+
+<form method="POST" action="create_payment.php">
+    <label for="order_id">Order ID</label>
+    <input type="number" name="order_id" required>
+
+    <label for="payment_method">Payment Method</label>
+    <select name="payment_method">
+        <option value="credit_card">Credit Card</option>
+        <option value="paypal">PayPal</option>
+        <option value="bank_transfer">Bank Transfer</option>
+    </select>
+
+    <label for="amount">Amount</label>
+    <input type="number" name="amount" required>
+
+    <button type="submit">Create Payment</button>
+</form>
+create_notification.php (Creating Notifications)
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $message = $_POST['message'];
+
+    $stmt = $pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
+    $stmt->execute([$user_id, $message]);
+
+    echo "Notification sent successfully!";
+}
+?>
+
+<form method="POST" action="create_notification.php">
+    <label for="message">Message</label>
+    <textarea name="message" required></textarea>
+
+    <button type="submit">Send Notification</button>
+</form>
+create_shipment.php (Creating Shipments)
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $order_id = $_POST['order_id'];
+    $tracking_number = $_POST['tracking_number'];
+    $shipment_status = $_POST['shipment_status'];
+
+    $stmt = $pdo->prepare("INSERT INTO shipments (order_id, tracking_number, shipment_status) VALUES (?, ?, ?)");
+    $stmt->execute([$order_id, $tracking_number, $shipment_status]);
+
+    echo "Shipment created successfully!";
+}
+?>
+
+<form method="POST" action="create_shipment.php">
+    <label for="order_id">Order ID</label>
+    <input type="number" name="order_id" required>
+
+    <label for="tracking_number">Tracking Number</label>
+    <input type="text" name="tracking_number" required>
+
+    <label for="shipment_status">Shipment Status</label>
+    <select name="shipment_status">
+        <option value="processing">Processing</option>
+        <option value="shipped">Shipped</option>
+        <option value="in_transit">In Transit</option>
+        <option value="delivered">Delivered</option>
+    </select>
+
+    <button type="submit">Create Shipment</button>
+</form>
+profile.php (User Profile)
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+$user_id = $_SESSION['user_id'];
+
+$stmt = $pdo->prepare("SELECT * FROM users WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$user = $stmt->fetch();
+
+echo "Name: " . $user['full_name'] . "<br>";
+echo "Email: " . $user['email'] . "<br>";
+echo "Phone: " . $user
+

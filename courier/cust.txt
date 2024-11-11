@@ -1,0 +1,260 @@
+1. Database Structure
+We’ll need the following tables:
+
+customers: To store customer profile data.
+orders: To store orders placed by customers.
+parcels: To store details of parcels associated with each order.
+payments: To store payment information for orders.
+notifications: To store notifications related to orders.
+shipments: To track shipment statuses for orders.
+SQL Table Structure
+sql
+Copy code
+-- Customers Table
+CREATE TABLE customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    phone VARCHAR(15),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Orders Table
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pending', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+    total_amount DECIMAL(10, 2),
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- Parcels Table
+CREATE TABLE parcels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    weight DECIMAL(10, 2),
+    dimensions VARCHAR(255),
+    description TEXT,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Payments Table
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_method ENUM('credit_card', 'paypal', 'bank_transfer') NOT NULL,
+    amount DECIMAL(10, 2),
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    message TEXT,
+    status ENUM('unread', 'read') DEFAULT 'unread',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+-- Shipments Table
+CREATE TABLE shipments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    shipment_status ENUM('in_transit', 'delivered', 'returned') DEFAULT 'in_transit',
+    tracking_number VARCHAR(100) UNIQUE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+2. PHP Code
+Now let’s write PHP code for the customer dashboard with basic CRUD functionalities.
+
+Database Connection (db.php)
+php
+Copy code
+<?php
+$host = 'localhost'; // Database host
+$username = 'root';  // Database username
+$password = '';      // Database password
+$database = 'courier_system'; // Database name
+
+// Create connection
+$conn = new mysqli($host, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+?>
+-------------------------------------
+1. Create Order (create_order.php)
+php
+Copy code
+<?php
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $customer_id = $_POST['customer_id']; // Customer ID (assumed logged-in user)
+    $total_amount = $_POST['total_amount'];
+
+    // Insert order into database
+    $sql = "INSERT INTO orders (customer_id, total_amount) VALUES ('$customer_id', '$total_amount')";
+    if ($conn->query($sql) === TRUE) {
+        echo "New order created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
+?>
+
+<form method="POST" action="create_order.php">
+    Customer ID: <input type="text" name="customer_id" required><br>
+    Total Amount: <input type="text" name="total_amount" required><br>
+    <input type="submit" value="Create Order">
+</form>
+--------------------------------------
+2. Create Parcel (create_parcel.php)
+php
+Copy code
+<?php
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $order_id = $_POST['order_id']; // Order ID
+    $weight = $_POST['weight'];
+    $dimensions = $_POST['dimensions'];
+    $description = $_POST['description'];
+
+    // Insert parcel into database
+    $sql = "INSERT INTO parcels (order_id, weight, dimensions, description) VALUES ('$order_id', '$weight', '$dimensions', '$description')";
+    if ($conn->query($sql) === TRUE) {
+        echo "Parcel created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
+?>
+
+<form method="POST" action="create_parcel.php">
+    Order ID: <input type="text" name="order_id" required><br>
+    Weight: <input type="text" name="weight" required><br>
+    Dimensions: <input type="text" name="dimensions" required><br>
+    Description: <textarea name="description"></textarea><br>
+    <input type="submit" value="Create Parcel">
+</form>
+-------------------------------------------
+3. Create Payment (create_payment.php)
+php
+Copy code
+<?php
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $order_id = $_POST['order_id'];
+    $payment_method = $_POST['payment_method'];
+    $amount = $_POST['amount'];
+
+    // Insert payment record
+    $sql = "INSERT INTO payments (order_id, payment_method, amount) VALUES ('$order_id', '$payment_method', '$amount')";
+    if ($conn->query($sql) === TRUE) {
+        echo "Payment created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
+?>
+
+<form method="POST" action="create_payment.php">
+    Order ID: <input type="text" name="order_id" required><br>
+    Payment Method: 
+    <select name="payment_method">
+        <option value="credit_card">Credit Card</option>
+        <option value="paypal">Paypal</option>
+        <option value="bank_transfer">Bank Transfer</option>
+    </select><br>
+    Amount: <input type="text" name="amount" required><br>
+    <input type="submit" value="Create Payment">
+</form>
+---------------------------------------------------------
+4. Create Notification (create_notification.php)
+php
+Copy code
+<?php
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $customer_id = $_POST['customer_id'];
+    $message = $_POST['message'];
+
+    // Insert notification into database
+    $sql = "INSERT INTO notifications (customer_id, message) VALUES ('$customer_id', '$message')";
+    if ($conn->query($sql) === TRUE) {
+        echo "Notification created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
+?>
+
+<form method="POST" action="create_notification.php">
+    Customer ID: <input type="text" name="customer_id" required><br>
+    Message: <textarea name="message" required></textarea><br>
+    <input type="submit" value="Create Notification">
+</form>
+-------------------------------------------------
+5. Create Shipment (create_shipment.php)
+php
+Copy code
+<?php
+include 'db.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $order_id = $_POST['order_id'];
+    $tracking_number = $_POST['tracking_number'];
+    $shipment_status = $_POST['shipment_status'];
+
+    // Insert shipment record
+    $sql = "INSERT INTO shipments (order_id, tracking_number, shipment_status) VALUES ('$order_id', '$tracking_number', '$shipment_status')";
+    if ($conn->query($sql) === TRUE) {
+        echo "Shipment created successfully";
+    } else {
+        echo "Error: " . $sql . "<br>" . $conn->error;
+    }
+}
+?>
+
+<form method="POST" action="create_shipment.php">
+    Order ID: <input type="text" name="order_id" required><br>
+    Tracking Number: <input type="text" name="tracking_number" required><br>
+    Shipment Status: 
+    <select name="shipment_status">
+        <option value="in_transit">In Transit</option>
+        <option value="delivered">Delivered</option>
+        <option value="returned">Returned</option>
+    </select><br>
+    <input type="submit" value="Create Shipment">
+</form>
+------------------------------------------------------------
+6. Customer Profile (profile.php)
+php
+Copy code
+<?php
+include 'db.php';
+
+// Assume customer_id is fetched from session or login system
+$customer_id = 1;  // Example customer ID
+
+$sql = "SELECT * FROM customers WHERE id = '$customer_id'";
+$result = $conn->query($sql);
+$customer = $result->fetch_assoc();
+?>
+
+<h2>Customer Profile</h2>
+Name: <?= $customer['name'] ?><br>
+Email: <?= $customer['email'] ?><br>
+Phone: <?= $customer['phone'] ?><br>
+Address: <?= $customer['address'] ?><br>

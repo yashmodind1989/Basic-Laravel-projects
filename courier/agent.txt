@@ -1,0 +1,243 @@
+1. Database Structure
+We'll create the necessary tables in MySQL to support the application. Here's the table structure.
+
+Tables:
+Users - To store agent information
+Orders - To store order details
+Parcels - To track parcels in each order
+Payments - To track payment details
+sql
+Copy code
+CREATE DATABASE courier_system;
+
+USE courier_system;
+
+-- Table for storing user (delivery agent) data
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'delivery_agent') NOT NULL,
+    phone VARCHAR(15),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for storing order details
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL, 
+    order_number VARCHAR(50) UNIQUE NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    shipping_address TEXT NOT NULL,
+    status ENUM('pending', 'shipped', 'delivered') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Table for storing parcels for each order
+CREATE TABLE parcels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    parcel_name VARCHAR(255),
+    weight DECIMAL(10, 2),
+    status ENUM('pending', 'in_transit', 'delivered') DEFAULT 'pending',
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- Table for storing payment status
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    payment_method VARCHAR(50),
+    amount DECIMAL(10, 2),
+    status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+2. PHP Code for Dashboard Functionality
+The following code includes the basic structure for the dashboard, updating profile, order management, and status changes.
+
+2.1. Database Connection (db.php)
+php
+Copy code
+<?php
+$host = 'localhost';
+$username = 'root';
+$password = '';
+$dbname = 'courier_system';
+
+$conn = new mysqli($host, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+?>
+2.2. Delivery Agent Dashboard (dashboard.php)
+This file will serve as the dashboard for the delivery agent after login.
+
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
+$query = "SELECT * FROM users WHERE id = '$user_id'";
+$result = $conn->query($query);
+$user = $result->fetch_assoc();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Delivery Agent Dashboard</title>
+</head>
+<body>
+    <h1>Welcome, <?php echo $user['name']; ?></h1>
+    <h3>Profile</h3>
+    <p>Email: <?php echo $user['email']; ?></p>
+    <p>Phone: <?php echo $user['phone']; ?></p>
+    <p>Address: <?php echo $user['address']; ?></p>
+
+    <h3>Manage Orders</h3>
+    <table border="1">
+        <tr>
+            <th>Order Number</th>
+            <th>Shipping Address</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        <?php
+        $orders_query = "SELECT * FROM orders WHERE user_id = '$user_id'";
+        $orders_result = $conn->query($orders_query);
+
+        while ($order = $orders_result->fetch_assoc()) {
+            echo "<tr>";
+            echo "<td>" . $order['order_number'] . "</td>";
+            echo "<td>" . $order['shipping_address'] . "</td>";
+            echo "<td>" . $order['status'] . "</td>";
+            echo "<td><a href='update_order.php?order_id=" . $order['id'] . "'>Update</a></td>";
+            echo "</tr>";
+        }
+        ?>
+    </table>
+
+    <h3>Manage Parcels</h3>
+    <table border="1">
+        <tr>
+            <th>Parcel Name</th>
+            <th>Weight</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        <?php
+        $parcels_query = "SELECT * FROM parcels WHERE order_id IN (SELECT id FROM orders WHERE user_id = '$user_id')";
+        $parcels_result = $conn->query($parcels_query);
+
+        while ($parcel = $parcels_result->fetch_assoc()) {
+            echo "<tr>";
+            echo "<td>" . $parcel['parcel_name'] . "</td>";
+            echo "<td>" . $parcel['weight'] . " kg</td>";
+            echo "<td>" . $parcel['status'] . "</td>";
+            echo "<td><a href='update_parcel.php?parcel_id=" . $parcel['id'] . "'>Update</a></td>";
+            echo "</tr>";
+        }
+        ?>
+    </table>
+
+    <h3>Manage Payments</h3>
+    <table border="1">
+        <tr>
+            <th>Order Number</th>
+            <th>Amount</th>
+            <th>Payment Status</th>
+            <th>Action</th>
+        </tr>
+        <?php
+        $payments_query = "SELECT * FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id = '$user_id')";
+        $payments_result = $conn->query($payments_query);
+
+        while ($payment = $payments_result->fetch_assoc()) {
+            echo "<tr>";
+            echo "<td>" . $payment['order_id'] . "</td>";
+            echo "<td>" . $payment['amount'] . "</td>";
+            echo "<td>" . $payment['status'] . "</td>";
+            echo "<td><a href='update_payment.php?payment_id=" . $payment['id'] . "'>Update</a></td>";
+            echo "</tr>";
+        }
+        ?>
+    </table>
+</body>
+</html>
+2.3. Update Order (update_order.php)
+This page allows the agent to change the status of an order.
+
+php
+Copy code
+<?php
+session_start();
+include('db.php');
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit();
+}
+
+$order_id = $_GET['order_id'];
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $status = $_POST['status'];
+    $update_query = "UPDATE orders SET status = '$status' WHERE id = '$order_id'";
+    if ($conn->query($update_query)) {
+        header('Location: dashboard.php');
+        exit();
+    }
+}
+
+$order_query = "SELECT * FROM orders WHERE id = '$order_id'";
+$order_result = $conn->query($order_query);
+$order = $order_result->fetch_assoc();
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Update Order</title>
+</head>
+<body>
+    <h1>Update Order: <?php echo $order['order_number']; ?></h1>
+    <form method="post">
+        <label for="status">Order Status:</label>
+        <select name="status" id="status">
+            <option value="pending" <?php if ($order['status'] == 'pending') echo 'selected'; ?>>Pending</option>
+            <option value="shipped" <?php if ($order['status'] == 'shipped') echo 'selected'; ?>>Shipped</option>
+            <option value="delivered" <?php if ($order['status'] == 'delivered') echo 'selected'; ?>>Delivered</option>
+        </select><br><br>
+        <input type="submit" value="Update">
+    </form>
+</body>
+</html>
+2.4. Update Parcel (update_parcel.php)
+A similar structure can be used for parcel status updates:
+
+php
+Copy code
+<?php
+// Similar to update_order.php, just change the parcel's status
+2.5. Update Payment (update_payment.php)
+Similarly, update the payment status in a similar fashion.
+
+Conclusion:
+This is a basic system that allows the delivery agent to:
+
+View their profile.
+Manage orders, update their statuses.
+Manage parcels and update their statuses.
+Track payment statuses.
