@@ -1,6 +1,6 @@
 # Basic-Laravel-projects
 Basic small laravel projects
-===========================================================================================================
+====================================
 admin:
 admin@yopmail.com
 superadmin
@@ -10,7 +10,7 @@ Role:
 -Manage Users
 -Manage Orders
 
-==============================================================================================================
+======================================
 customer:
 customer@yopmail.com
 customer
@@ -27,7 +27,7 @@ Role:
 -Track Order
 -View Cancelled Orders
 
-=========================================================================================================
+============================================
 delivery_agent:
 deliveryAgent@yopmail.com
 deliveryAgent
