@@ -29,6 +29,11 @@
        //print_r($data);
        //exit;
     @endphp
+    @if(session()->has('success'))
+    <div class="alert alert-success">
+        {{  session()->get('success') }}
+    </div>
+    @endif
     <div id="toolbar">
             <select class="form-control">
                     <option value="">Export Basic</option>
@@ -83,8 +88,15 @@
                 <td>{{ $myassignedord->updated_at }}</td>
                 <td>{{ \Illuminate\Support\Facades\Auth::guard()->user()->id }}</td>
                 <td>{{ \Illuminate\Support\Facades\Auth::guard()->user()->name }}</td>
-                <td><a href="" class="btn btn-info">Change Status</a></td>
-                <td><a href="" class="btn btn-danger">Remove</a></td>
+
+                <td><a href="{{ route('change_status',$myassignedord->order_id) }}" class="btn btn-info">Change Status</a></td>
+                <td>
+                   <form method="post" action="{{ route('remove_order',$myassignedord->order_id) }}">
+                    @csrf
+                    @method('Delete')
+                      <input type="submit" name="btndel" id="btndel" class="btn btn-danger" value="Remove"/>
+                   </form>
+                </td>
             </tr>
            @empty
            <tr>

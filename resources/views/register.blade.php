@@ -25,7 +25,16 @@
     background-color: rgba(238, 77, 71, 0.635) !important;
     backdrop-filter: blur(4px) !important;
 }
+input[type="radio"]{
+    padding:15px 25px !important;
+}
+.input-group > input {
+    margin: 0px 15px !important;
+    text-indent: 2px !important;
+    display: block !important;
+}
  </style>
+
  <!-- Login 4 - Bootstrap Brain Component -->
 <section class="p-3 p-md-4 p-xl-5">
   <div class="container">
@@ -45,7 +54,8 @@
             </div>
             <!-- Registration 1 - Bootstrap Brain Component -->
 
-          <form action="#!">
+          <form action="{{ route('addNewUser') }}" method="post" enctype="multipart/form-data">
+            @csrf
             <div class="row gy-3 gy-md-4 overflow-hidden">
               <div class="col-12">
                 <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
@@ -95,6 +105,33 @@
                 </div>
               </div>
               <div class="col-12">
+                <label for="password" class="form-label">Picture <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  {{--  <span class="input-group-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-key" viewBox="0 0 16 16">
+                      <path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8zm4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5z" />
+                      <path d="M4 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+                    </svg>
+                  </span>  --}}
+                  <input type="file" class="form-control" name="file" id="file" accept="image/png, image/jpeg, image/jpg" required>
+                </div>
+              </div>
+              <div class="col-12">
+                <label for="password" class="form-label">Role <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  {{--  <span class="input-group-text">
+                    {{--  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-key" viewBox="0 0 16 16">
+                      <path d="M0 8a4 4 0 0 1 7.465-2H14a.5.5 0 0 1 .354.146l1.5 1.5a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0L13 9.207l-.646.647a.5.5 0 0 1-.708 0L11 9.207l-.646.647a.5.5 0 0 1-.708 0L9 9.207l-.646.647A.5.5 0 0 1 8 10h-.535A4 4 0 0 1 0 8zm4-3a3 3 0 1 0 2.712 4.285A.5.5 0 0 1 7.163 9h.63l.853-.854a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.646-.647a.5.5 0 0 1 .708 0l.646.647.793-.793-1-1h-6.63a.5.5 0 0 1-.451-.285A3 3 0 0 0 4 5z" />
+                      <path d="M4 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+                    </svg>  --}}
+                  {{--  --}}
+                  <input type="radio"  name="role"  value="deliveryAgent" checked> Delivery Agent
+                  <input type="radio"  name="role"  value="customer" checked> Customer
+
+                </div>
+
+              </div>
+              <div class="col-12">
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" value="" name="iAgree" id="iAgree" required>
                   <label class="form-check-label text-secondary" for="iAgree">
@@ -115,7 +152,7 @@
               <p class="m-0 text-secondary text-center">Already have an account? <a href="#!" class="link-primary text-decoration-none">Sign in</a></p>
             </div>
           </div>
-        
+
             <div class="row">
               <div class="col-12">
                 <hr class="mt-5 mb-4 border-secondary-subtle">
@@ -156,5 +193,18 @@
     </div>
   </div>
 </section>
-
+@if(session()->has('success'))
+ <div class="alert alert-success">
+    {{  session()->get('success') }}
+ </div>
+ @endif
+ @if ($errors->any())
+    <div class="alert alert-danger">
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
  @endsection

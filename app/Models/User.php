@@ -23,6 +23,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'profile_pic',
+        'is_active',
     ];
 
     /**
@@ -43,4 +46,16 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    // //mutator
+    // public function setFullNameAttribute($value)
+    // {
+    //     $this->attributes['full_name'] = ucfirst($this->firstName) . ' ' . ucfirst($this->lastName);
+    // }
+    // //accessor
+    // public function getFullNameAttribute($value)
+    // {
+    //     return $this->attributes['full_name'] ?? ucfirst($this->firstName) . ' ' . ucfirst($this->lastName);
+    // }
+
 }

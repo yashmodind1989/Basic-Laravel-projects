@@ -86,6 +86,7 @@ class AuthController extends Controller
     }
     public function dologin(Request $request)
     {
+          //dd($request->all());
           $validated=$request->validate([
               'email' =>'required | string | email',
               'password' =>'required | string |min:6',
@@ -98,7 +99,9 @@ class AuthController extends Controller
                 'email'=>$email,
                 'password'=>$passw,
                ];
-               if (Auth::guard()->attempt($credentials))
+               $remember = $request->has('remember_me'); // Check if remember me is selected
+
+               if (Auth::guard()->attempt($credentials,$remember))
                {
                   // Get the authenticated user
                   $user = Auth::guard()->user();
@@ -123,9 +126,11 @@ class AuthController extends Controller
             redirect()->route('login')->with(['error'=>'Something Went Wrong'],500);
           }
     }
-    public function logout()
+    public function logout(Request $request)
     {
         Auth::guard()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
         return redirect('/login');
     }
 }

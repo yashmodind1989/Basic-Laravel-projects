@@ -28,6 +28,34 @@ class AgentController extends Controller
                 //print_r($posts);
 
        return view('agent.viewOrders',compact('data'));
-
+    }
+    public function change_status($id,Request $request)
+    {
+        //dd($id);
+        $order=Order::findOrfail($id);
+        $status=$order->status;
+        return view('agent.updateStatus',['orderStatus'=>$status,'orderId'=>$id]);
+    }
+    public function updateStatus($id,Request $request)
+    {
+        $orderId=$id;
+        //dd($request->all());
+        $data=$request->except(['_token','_method','btnmodify']);
+        $state=$data['ddlstate'];
+        //dd($state);
+        $updateOrder=Order::where('id',$orderId)->update([
+            'status'=>$state
+        ]);
+        $updateAgents=agents::where('order_id',$id)->update([
+            'status'=>$state
+        ]);
+        return redirect()->route('viewOrders')->with('success','Data Changed Successfully');
+    }
+    public function remove_order($id,Request $request)
+    {
+         $orderId=$id;
+         $deleteOrder=Order::where('id',$id)->delete();
+         $deleteAgent=agents::where('id',$id)->delete();
+         return redirect()->route('viewOrders')->with('success','Data Removed Successfully');
     }
 }

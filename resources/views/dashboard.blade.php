@@ -153,9 +153,9 @@
                         class="fas fa-chart-bar pr-15"></i>&nbsp;&nbsp;Reports</a>  --}}
             @endif
             @if ($user['role'] == 'deliveryAgent')
-                <a href="#" title="Users" class="link"><i class="fas fa-users pr-15"></i>&nbsp;&nbsp;Change Order Status</a>
+                {{--  <a href="#" title="Users" class="link"><i class="fas fa-users pr-15"></i>&nbsp;&nbsp;Change Order Status</a>  --}}
                 <a href="{{ route('viewOrders') }}" title="Users" class="link"><i class="fas fa-users pr-15"></i>&nbsp;&nbsp;View Orders</a>
-                <a href="#" title="Users" class="link"><i class="fas fa-users pr-15"></i>&nbsp;&nbsp;Manage Shipping</a>
+                {{--  <a href="#" title="Users" class="link"><i class="fas fa-users pr-15"></i>&nbsp;&nbsp;Manage Shipping</a>  --}}
                 {{--  <a href="#" title="Settings" class="link"><i class="fas fa-cog pr-15"></i>&nbsp;&nbsp;Settings</a>
                 <a href="#" class="link" title="Reports"><i
                         class="fas fa-chart-bar pr-15"></i>&nbsp;&nbsp;Reports</a>  --}}

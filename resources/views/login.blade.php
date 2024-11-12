@@ -48,7 +48,7 @@
               <div class="row gy-3 gy-md-4 overflow-hidden">
                 <div class="col-12">
                   <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-                  <input type="email" class="form-control" name="email" id="email" placeholder="name@example.com" required>
+                  <input type="email" class="form-control" name="email" id="email" placeholder="name@example.com" required autofocus value="{{ old('email') }}">
                 </div>
                 <div class="col-12">
                   <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
@@ -56,7 +56,7 @@
                 </div>
                 <div class="col-12">
                   <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="" name="remember_me" id="remember_me">
+                    <input class="form-check-input" type="checkbox" value="1" name="remember_me" id="remember_me" {{ old('remember_me') ? 'checked' : '' }}>
                     <label class="form-check-label text-secondary" for="remember_me">
                       Keep me logged in
                     </label>
